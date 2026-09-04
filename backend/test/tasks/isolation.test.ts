@@ -1,13 +1,14 @@
 import request from "supertest";
 import { createApp } from "../../src/app";
 import { knex } from "../../src/db/knex";
+import { VALID_CREDENTIAL } from "../fixtures/credentials";
 
 const app = createApp();
 
 describe("GET /api/tasks isolation (AC15)", () => {
   it("returns only the requesting user's tasks", async () => {
-    const userA = await request(app).post("/api/auth/register").send({ email: "kate@example.com", password: "Passw0rd" });
-    const userB = await request(app).post("/api/auth/register").send({ email: "liam@example.com", password: "Passw0rd" });
+    const userA = await request(app).post("/api/auth/register").send({ email: "kate@example.com", password: VALID_CREDENTIAL });
+    const userB = await request(app).post("/api/auth/register").send({ email: "liam@example.com", password: VALID_CREDENTIAL });
 
     await knex("tasks").insert({ user_id: userA.body.user.id, title: "A's task" });
     await knex("tasks").insert({ user_id: userB.body.user.id, title: "B's task" });

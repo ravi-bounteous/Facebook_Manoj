@@ -2,6 +2,7 @@ import * as authService from "../../src/services/authService";
 import { knex } from "../../src/db/knex";
 import { AccountLockedError, InvalidCredentialsError } from "../../src/services/errors";
 import { Clock } from "../../src/utils/clock";
+import { VALID_CREDENTIAL, INVALID_CREDENTIAL } from "../fixtures/credentials";
 
 function fixedClock(date: Date): Clock {
   return { now: () => date };
@@ -9,7 +10,7 @@ function fixedClock(date: Date): Clock {
 
 describe("account lockout (AC25, AC26, AC27)", () => {
   const email = "noah@example.com";
-  const password = "Passw0rd";
+  const password = VALID_CREDENTIAL;
   const start = new Date("2026-01-01T00:00:00Z");
 
   beforeEach(async () => {
@@ -18,7 +19,7 @@ describe("account lockout (AC25, AC26, AC27)", () => {
 
   it("locks the account after 5 consecutive failed logins (AC25)", async () => {
     for (let i = 0; i < 5; i++) {
-      await expect(authService.login(email, "WrongPass1", fixedClock(start))).rejects.toThrow(InvalidCredentialsError);
+      await expect(authService.login(email, INVALID_CREDENTIAL, fixedClock(start))).rejects.toThrow(InvalidCredentialsError);
     }
 
     const user = await knex("users").where({ email }).first();
@@ -28,7 +29,7 @@ describe("account lockout (AC25, AC26, AC27)", () => {
 
   it("denies login during the lockout cooldown with a lockout message (AC26)", async () => {
     for (let i = 0; i < 5; i++) {
-      await expect(authService.login(email, "WrongPass1", fixedClock(start))).rejects.toThrow(InvalidCredentialsError);
+      await expect(authService.login(email, INVALID_CREDENTIAL, fixedClock(start))).rejects.toThrow(InvalidCredentialsError);
     }
 
     const duringCooldown = new Date(start.getTime() + 60 * 1000);
@@ -37,7 +38,7 @@ describe("account lockout (AC25, AC26, AC27)", () => {
 
   it("allows login again once the cooldown elapses (AC27)", async () => {
     for (let i = 0; i < 5; i++) {
-      await expect(authService.login(email, "WrongPass1", fixedClock(start))).rejects.toThrow(InvalidCredentialsError);
+      await expect(authService.login(email, INVALID_CREDENTIAL, fixedClock(start))).rejects.toThrow(InvalidCredentialsError);
     }
 
     const afterCooldown = new Date(start.getTime() + 20 * 60 * 1000);

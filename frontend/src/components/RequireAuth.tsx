@@ -3,9 +3,9 @@ import { Navigate } from "react-router-dom";
 import { tokenStorage, isTokenExpired } from "../api/tokenStorage";
 
 export function RequireAuth({ children }: { children: ReactElement }): ReactElement {
-  const accessToken = tokenStorage.getAccessToken();
+  const currentToken = tokenStorage.getAccessToken();
 
-  if (isTokenExpired(accessToken)) {
+  if (isTokenExpired(currentToken)) {
     return <Navigate to="/login" replace />;
   }
 

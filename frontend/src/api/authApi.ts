@@ -59,13 +59,13 @@ async function tryRefresh(): Promise<boolean> {
 }
 
 export async function apiFetch(path: string, init: RequestInit = {}): Promise<Response> {
-  const accessToken = tokenStorage.getAccessToken();
+  const currentToken = tokenStorage.getAccessToken();
   const withAuth = (token: string | null): RequestInit => ({
     ...init,
     headers: { ...(init.headers || {}), ...(token ? { Authorization: `Bearer ${token}` } : {}) },
   });
 
-  const res = await fetch(`${API_BASE}${path}`, withAuth(accessToken));
+  const res = await fetch(`${API_BASE}${path}`, withAuth(currentToken));
   if (res.status !== 401) return res;
 
   const refreshed = await tryRefresh();

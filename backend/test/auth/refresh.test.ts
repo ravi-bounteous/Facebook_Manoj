@@ -2,12 +2,13 @@ import request from "supertest";
 import jwt from "jsonwebtoken";
 import { createApp } from "../../src/app";
 import { config } from "../../src/config";
+import { VALID_CREDENTIAL } from "../fixtures/credentials";
 
 const app = createApp();
 
 describe("POST /api/auth/refresh", () => {
   it("issues a new access token for a valid refresh token (AC23)", async () => {
-    const reg = await request(app).post("/api/auth/register").send({ email: "mia@example.com", password: "Passw0rd" });
+    const reg = await request(app).post("/api/auth/register").send({ email: "mia@example.com", password: VALID_CREDENTIAL });
 
     const res = await request(app).post("/api/auth/refresh").send({ refreshToken: reg.body.refreshToken });
 

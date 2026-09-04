@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
 import { register, login, logout, apiFetch } from "../../src/api/authApi";
 import { tokenStorage } from "../../src/api/tokenStorage";
+import { VALID_CREDENTIAL } from "../fixtures/credentials";
 
 describe("authApi", () => {
   beforeEach(() => {
@@ -15,7 +16,7 @@ describe("authApi", () => {
       json: async () => ({ accessToken: "a", refreshToken: "r", user: { id: "1", email: "x@x.com" } }),
     }) as any;
 
-    const result = await register("x@x.com", "Passw0rd");
+    const result = await register("x@x.com", VALID_CREDENTIAL);
 
     expect(result.user.email).toBe("x@x.com");
     expect(tokenStorage.getAccessToken()).toBe("a");
@@ -29,7 +30,7 @@ describe("authApi", () => {
       json: async () => ({ error: "Email already registered" }),
     }) as any;
 
-    await expect(register("x@x.com", "Passw0rd")).rejects.toThrow(/already registered/i);
+    await expect(register("x@x.com", VALID_CREDENTIAL)).rejects.toThrow(/already registered/i);
   });
 
   it("login() stores tokens on success", async () => {
@@ -39,7 +40,7 @@ describe("authApi", () => {
       json: async () => ({ accessToken: "a", refreshToken: "r", user: { id: "1", email: "x@x.com" } }),
     }) as any;
 
-    await login("x@x.com", "Passw0rd");
+    await login("x@x.com", VALID_CREDENTIAL);
 
     expect(tokenStorage.getAccessToken()).toBe("a");
   });
