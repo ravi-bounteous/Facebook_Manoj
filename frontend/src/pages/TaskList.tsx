@@ -64,8 +64,10 @@ export function TaskList() {
               {task.priority && <span> ({task.priority})</span>}
               {task.category && <span> [{task.category}]</span>}
               {task.due_date && <span> due {task.due_date}</span>}
-              {task.tags && task.tags.length > 0 && <span> tags: {task.tags.join(", ")}</span>}
-              <Link to={`/tasks/${task.id}/edit`}>Edit</Link>
+              {task.tags && task.tags.length > 0 && <span> tags: {task.tags.join(", ")}</span>}{" "}
+              <Link to={`/tasks/${task.id}/edit`} aria-label={`Edit ${task.title}`}>
+                Edit
+              </Link>
             </li>
           ))}
         </ul>

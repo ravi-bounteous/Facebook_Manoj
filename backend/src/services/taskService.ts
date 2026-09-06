@@ -41,7 +41,12 @@ export async function createTask(userId: string, input: TaskInput) {
   }
 }
 
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 async function findTaskById(taskId: string) {
+  if (!UUID_PATTERN.test(taskId)) {
+    return undefined;
+  }
   return knex("tasks").where({ id: taskId }).first();
 }
 

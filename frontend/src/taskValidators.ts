@@ -31,7 +31,7 @@ export function validateTaskForm(values: TaskFormValues): string | null {
     return `Description must be at most ${MAX_DESCRIPTION_LENGTH} characters`;
   }
   if (values.due_date && !isValidCalendarDate(values.due_date)) {
-    return "Due date must be a valid calendar date";
+    return "Due date must be a valid calendar date in YYYY-MM-DD format";
   }
   if (values.priority && !PRIORITIES.includes(values.priority as (typeof PRIORITIES)[number])) {
     return "Priority must be low, medium, or high";

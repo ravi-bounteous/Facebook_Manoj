@@ -144,12 +144,38 @@ describe("TaskForm edit mode", () => {
     expect(await screen.findByText(/task list/i)).toBeInTheDocument();
   });
 
-  it("shows a permission error on 403 and does not navigate (AC17, AC18)", async () => {
+  it("shows a permission error on 403 while loading and does not navigate (AC17, AC18)", async () => {
     vi.spyOn(taskApi, "getTask").mockRejectedValue(new taskApi.ApiError(403, "You do not have permission to edit this task"));
 
     renderEdit("task-1");
 
     expect(await screen.findByRole("alert")).toHaveTextContent(/permission/i);
+  });
+
+  it("shows a permission error on submit and does not update or navigate (AC17, AC18)", async () => {
+    vi.spyOn(taskApi, "getTask").mockResolvedValue({
+      id: "task-1",
+      title: "Original",
+      description: null,
+      due_date: null,
+      priority: "medium",
+      tags: [],
+      category: null,
+      created_at: "",
+      updated_at: "",
+    });
+    const updateSpy = vi
+      .spyOn(taskApi, "updateTask")
+      .mockRejectedValue(new taskApi.ApiError(403, "You do not have permission to edit this task"));
+
+    renderEdit("task-1");
+
+    expect(await screen.findByDisplayValue("Original")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /save/i }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(/permission/i);
+    expect(updateSpy).toHaveBeenCalled();
+    expect(screen.queryByText(/task list/i)).not.toBeInTheDocument();
   });
 
   it("shows a not-found error on 404 and redirects to the task list (AC19, AC20)", async () => {

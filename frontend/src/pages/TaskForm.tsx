@@ -37,7 +37,9 @@ export function TaskForm() {
         if (cancelled) return;
         if (err instanceof taskApi.ApiError && err.status === 404) {
           setError("Task not found");
-          navigate("/tasks");
+          setTimeout(() => {
+            if (!cancelled) navigate("/tasks");
+          }, 500);
           return;
         }
         if (err instanceof taskApi.ApiError && err.status === 403) {
@@ -99,7 +101,7 @@ export function TaskForm() {
     } catch (err) {
       if (err instanceof taskApi.ApiError && err.status === 404) {
         setError("Task not found");
-        navigate("/tasks");
+        setTimeout(() => navigate("/tasks"), 500);
         return;
       }
       if (err instanceof taskApi.ApiError && err.status === 403) {
@@ -131,8 +133,14 @@ export function TaskForm() {
       <label htmlFor="task-description">Description</label>
       <textarea id="task-description" value={description} onChange={(e) => setDescription(e.target.value)} />
 
-      <label htmlFor="task-due-date">Due date</label>
-      <input id="task-due-date" type="text" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
+      <label htmlFor="task-due-date">Due date (YYYY-MM-DD)</label>
+      <input
+        id="task-due-date"
+        type="text"
+        placeholder="YYYY-MM-DD"
+        value={dueDate}
+        onChange={(e) => setDueDate(e.target.value)}
+      />
 
       <label htmlFor="task-priority">Priority</label>
       <select id="task-priority" value={priority} onChange={(e) => setPriority(e.target.value)}>

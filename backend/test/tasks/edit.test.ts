@@ -93,5 +93,10 @@ describe("PUT /api/tasks/:id edit", () => {
       .set("Authorization", `Bearer ${token}`)
       .send({ title: "Task", category: "nope" });
     expect(badCategory.status).toBe(400);
+
+    const get = await request(app).get(`/api/tasks/${task.id}`).set("Authorization", `Bearer ${token}`);
+    expect(get.body.task.tags).toEqual([]);
+    expect(get.body.task.due_date).toBeNull();
+    expect(get.body.task.category).toBeNull();
   });
 });

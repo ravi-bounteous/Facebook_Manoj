@@ -47,7 +47,7 @@ export function validateTaskInput(input: TaskInput): ValidatedTask {
   let due_date: string | null = null;
   if (input.due_date) {
     if (!isValidCalendarDate(input.due_date)) {
-      throw new ValidationError("Due date must be a valid calendar date");
+      throw new ValidationError("Due date must be a valid calendar date in YYYY-MM-DD format");
     }
     due_date = input.due_date;
   }
@@ -61,8 +61,11 @@ export function validateTaskInput(input: TaskInput): ValidatedTask {
   }
 
   const rawTags = input.tags ?? [];
-  if (rawTags.length > 5) {
-    throw new ValidationError("A task can have at most 5 tags");
+  if (!Array.isArray(rawTags) || !rawTags.every((tag) => typeof tag === "string")) {
+    throw new ValidationError("Tags must be an array of strings");
+  }
+  if (rawTags.length > MAX_TAGS) {
+    throw new ValidationError(`A task can have at most ${MAX_TAGS} tags`);
   }
   const tags = Array.from(new Set(rawTags));
 
