@@ -50,7 +50,8 @@ describe("TaskForm create mode", () => {
     renderCreate();
     fireEvent.click(screen.getByRole("button", { name: /save/i }));
 
-    expect(await screen.findByRole("alert")).toBeInTheDocument();
+    const titleInput = screen.getByLabelText(/title/i) as HTMLInputElement;
+    expect(titleInput.validity.valid).toBe(false);
     expect(createSpy).not.toHaveBeenCalled();
   });
 

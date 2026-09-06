@@ -119,7 +119,14 @@ export function TaskForm() {
       <h1>{isEdit ? "Edit Task" : "New Task"}</h1>
 
       <label htmlFor="task-title">Title</label>
-      <input id="task-title" type="text" value={title} onChange={(e) => setTitle(e.target.value)} />
+      <input
+        id="task-title"
+        type="text"
+        required
+        aria-required="true"
+        value={title}
+        onChange={(e) => setTitle(e.target.value)}
+      />
 
       <label htmlFor="task-description">Description</label>
       <textarea id="task-description" value={description} onChange={(e) => setDescription(e.target.value)} />
