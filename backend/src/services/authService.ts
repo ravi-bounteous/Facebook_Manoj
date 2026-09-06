@@ -6,6 +6,8 @@ import { isValidPassword } from "./passwordPolicy";
 import { signAccessToken, signRefreshToken, verifyRefreshToken } from "./tokenService";
 import { AccountLockedError, DuplicateEmailError, InvalidCredentialsError, ValidationError } from "./errors";
 import { systemClock, Clock } from "../utils/clock";
+import { validateTokenVersion } from "./sessionValidation";
+import { getTokenVersion } from "./tokenVersionCache";
 
 const BCRYPT_ROUNDS = 10;
 const POSTGRES_UNIQUE_VIOLATION = "23505";
@@ -85,12 +87,23 @@ async function recordFailedAttempt(userId: string, currentAttempts: number, cloc
 
 export async function refresh(refreshToken: string): Promise<{ accessToken: string }> {
   const payload = verifyRefreshToken(refreshToken);
-  const user = await knex("users").where({ id: payload.sub }).first();
-  if (!user || (payload.ver ?? 0) !== user.token_version) {
-    console.info(
-      `[auth] refresh rejected user_id=${payload.sub} reason="token_version mismatch (session invalidated, e.g. by password reset)"`
-    );
-    throw new InvalidCredentialsError();
+  try {
+    await validateTokenVersion(payload.sub, payload.ver ?? 0);
+  } catch (err) {
+    if (err instanceof InvalidCredentialsError) {
+      console.info(
+        `[auth] refresh rejected user_id=${payload.sub} reason="token_version mismatch (session invalidated, e.g. by password reset)"`
+      );
+    } else {
+      console.error(
+        `[auth] refresh validation failed due to an unexpected error user_id=${payload.sub} error=${
+          err instanceof Error ? err.message : String(err)
+        }`
+      );
+    }
+    throw err;
   }
-  return { accessToken: signAccessToken(user.id, user.token_version) };
+
+  const currentVersion = await getTokenVersion(payload.sub);
+  return { accessToken: signAccessToken(payload.sub, currentVersion ?? 0) };
 }
