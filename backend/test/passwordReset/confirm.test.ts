@@ -159,6 +159,11 @@ describe("password reset confirm", () => {
 
     expect(refreshA.status).toBe(401);
     expect(refreshB.status).toBe(401);
+
+    const taskRequest = await request(app)
+      .get("/api/tasks")
+      .set("Authorization", `Bearer ${sessionA.accessToken}`);
+    expect(taskRequest.status).toBe(401);
   });
 
   it("sends a confirmation security notice email with no actionable link (AC17)", async () => {

@@ -28,7 +28,7 @@ describe("password reset request", () => {
     await authService.register("felix@example.com", VALID_CREDENTIAL);
     const emailService = new FakeEmailService();
 
-    await passwordResetService.requestReset("felix@example.com", undefined, emailService);
+    await passwordResetService.requestReset("felix@example.com", { now: () => new Date() }, emailService);
 
     expect(emailService.sent[0].body).toContain(`${config.emailBaseUrl}/reset-password?token=`);
   });
