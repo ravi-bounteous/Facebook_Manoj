@@ -115,7 +115,7 @@ export function TaskForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit}>
+    <form onSubmit={handleSubmit} noValidate>
       <h1>{isEdit ? "Edit Task" : "New Task"}</h1>
 
       <label htmlFor="task-title">Title</label>

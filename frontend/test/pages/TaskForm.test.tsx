@@ -50,9 +50,12 @@ describe("TaskForm create mode", () => {
     renderCreate();
     fireEvent.click(screen.getByRole("button", { name: /save/i }));
 
-    const titleInput = screen.getByLabelText(/title/i) as HTMLInputElement;
-    expect(titleInput.validity.valid).toBe(false);
+    expect(await screen.findByRole("alert")).toBeInTheDocument();
     expect(createSpy).not.toHaveBeenCalled();
+
+    const titleInput = screen.getByLabelText(/title/i) as HTMLInputElement;
+    expect(titleInput).toHaveAttribute("required");
+    expect(titleInput).toHaveAttribute("aria-required", "true");
   });
 
   it("shows a validation error for a whitespace-only title (AC28, AC29)", async () => {

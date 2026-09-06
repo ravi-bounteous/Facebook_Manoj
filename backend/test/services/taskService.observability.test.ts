@@ -69,4 +69,19 @@ describe("taskService observability", () => {
 
     updateSpy.mockRestore();
   });
+
+  it("does not include userId or taskId on routine success logs (avoids unbounded log cardinality)", async () => {
+    const infoSpy = jest.spyOn(logger, "info").mockImplementation(() => undefined);
+    const ownerId = await createUser("owner-obs4@example.com");
+    const task = await createTask(ownerId, { title: "Task" } as any);
+    await updateTask(task.id, ownerId, { title: "Task updated" } as any);
+
+    const createdCall = infoSpy.mock.calls.find(([event]) => event === "task.created")!;
+    const updatedCall = infoSpy.mock.calls.find(([event]) => event === "task.updated")!;
+
+    expect(createdCall[1] ?? {}).not.toHaveProperty("userId");
+    expect(createdCall[1] ?? {}).not.toHaveProperty("taskId");
+    expect(updatedCall[1] ?? {}).not.toHaveProperty("userId");
+    expect(updatedCall[1] ?? {}).not.toHaveProperty("taskId");
+  });
 });

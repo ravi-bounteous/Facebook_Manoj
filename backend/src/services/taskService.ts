@@ -33,7 +33,7 @@ export async function createTask(userId: string, input: TaskInput) {
         category: validated.category,
       })
       .returning(TASK_COLUMNS);
-    logger.info("task.created", { userId, taskId: task.id });
+    logger.info("task.created");
     return task;
   } catch (err) {
     logger.error("task.create_failed", { userId, error: err instanceof Error ? err.message : String(err) });
@@ -81,7 +81,7 @@ export async function updateTask(taskId: string, userId: string, input: TaskInpu
         updated_at: knex.fn.now(),
       })
       .returning(TASK_COLUMNS);
-    logger.info("task.updated", { userId, taskId });
+    logger.info("task.updated");
     return updated;
   } catch (err) {
     logger.error("task.update_failed", { userId, taskId, error: err instanceof Error ? err.message : String(err) });

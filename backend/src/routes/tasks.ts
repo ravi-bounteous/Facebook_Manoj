@@ -28,8 +28,6 @@ function instrument(operation: string, handler: (req: AuthenticatedRequest, res:
     res.on("finish", () => {
       logger.info("task.request", {
         operation,
-        userId: req.user?.id,
-        taskId: req.params?.id,
         status: res.statusCode,
         durationMs: Date.now() - startedAt,
       });

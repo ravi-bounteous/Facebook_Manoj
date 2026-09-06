@@ -25,6 +25,9 @@ describe("task routes observability", () => {
       "task.request",
       expect.objectContaining({ operation: "list", status: 200, durationMs: expect.any(Number) })
     );
+    const [, fields] = infoSpy.mock.calls.find(([event]) => event === "task.request")!;
+    expect(fields).not.toHaveProperty("userId");
+    expect(fields).not.toHaveProperty("taskId");
   });
 
   it("logs a request event with a 404 status for a get on a missing task", async () => {
