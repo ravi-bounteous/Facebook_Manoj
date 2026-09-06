@@ -25,3 +25,17 @@ export class AccountLockedError extends Error {
     this.name = "AccountLockedError";
   }
 }
+
+export class NotFoundError extends Error {
+  constructor(message = "Task not found") {
+    super(message);
+    this.name = "NotFoundError";
+  }
+}
+
+export class ForbiddenError extends Error {
+  constructor(message = "You do not have permission to edit this task") {
+    super(message);
+    this.name = "ForbiddenError";
+  }
+}
