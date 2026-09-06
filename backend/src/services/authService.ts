@@ -87,6 +87,9 @@ export async function refresh(refreshToken: string): Promise<{ accessToken: stri
   const payload = verifyRefreshToken(refreshToken);
   const user = await knex("users").where({ id: payload.sub }).first();
   if (!user || (payload.ver ?? 0) !== user.token_version) {
+    console.info(
+      `[auth] refresh rejected user_id=${payload.sub} reason="token_version mismatch (session invalidated, e.g. by password reset)"`
+    );
     throw new InvalidCredentialsError();
   }
   return { accessToken: signAccessToken(user.id, user.token_version) };

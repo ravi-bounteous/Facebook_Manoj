@@ -1,7 +1,7 @@
 import crypto from "crypto";
 import { knex } from "../db/knex";
 import { config } from "../config";
-import { normalizeEmail } from "./emailValidator";
+import { isValidEmail, normalizeEmail } from "./emailValidator";
 import { isValidPassword } from "./passwordPolicy";
 import { InvalidResetTokenError, ValidationError } from "./errors";
 import { systemClock, Clock } from "../utils/clock";
@@ -9,7 +9,7 @@ import { EmailService, ConsoleEmailService } from "./emailService";
 import bcrypt from "bcrypt";
 
 const BCRYPT_ROUNDS = 10;
-const RESET_LINK_BASE_PATH = "/reset-password";
+const RESET_LINK_PATH = "/reset-password";
 
 function hashToken(token: string): string {
   return crypto.createHash("sha256").update(token).digest("hex");
@@ -20,6 +20,10 @@ export async function requestReset(
   clock: Clock = systemClock,
   emailService: EmailService = new ConsoleEmailService()
 ): Promise<void> {
+  if (!isValidEmail(email)) {
+    throw new ValidationError("A valid email is required");
+  }
+
   const normalizedEmail = normalizeEmail(email);
   const user = await knex("users").where({ email: normalizedEmail }).first();
   if (!user) {
@@ -35,6 +39,9 @@ export async function requestReset(
     .first();
   const count = Number(recentCount?.count ?? 0);
   if (count >= config.passwordResetRateLimitPerHour) {
+    console.warn(
+      `[password-reset] rate limit exceeded user_id=${user.id} count=${count} limit=${config.passwordResetRateLimitPerHour}`
+    );
     return;
   }
 
@@ -53,7 +60,7 @@ export async function requestReset(
     expires_at: expiresAt,
   });
 
-  const resetLink = `${RESET_LINK_BASE_PATH}?token=${rawToken}`;
+  const resetLink = `${config.emailBaseUrl}${RESET_LINK_PATH}?token=${rawToken}`;
   await emailService.send({
     to: user.email,
     subject: "Reset your password",
@@ -71,6 +78,8 @@ export async function resetPassword(
 
   const record = await knex("password_reset_tokens").where({ token_hash: tokenHash }).first();
   if (!record || record.used_at || new Date(record.expires_at) <= clock.now()) {
+    const reason = !record ? "not found" : record.used_at ? "already used" : "expired";
+    console.info(`[password-reset] invalid reset token rejected reason="${reason}"`);
     throw new InvalidResetTokenError();
   }
 
@@ -89,6 +98,7 @@ export async function resetPassword(
       .first();
 
     if (!lockedRecord || lockedRecord.used_at || new Date(lockedRecord.expires_at) <= now) {
+      console.info("[password-reset] invalid reset token rejected reason=\"already used or expired (concurrent submit)\"");
       throw new InvalidResetTokenError();
     }
 

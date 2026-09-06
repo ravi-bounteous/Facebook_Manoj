@@ -22,7 +22,7 @@ export function ForgotPassword() {
         onChange={(e) => setEmail(e.target.value)}
       />
 
-      {message && <p>{message}</p>}
+      {message && <p role="status">{message}</p>}
 
       <button type="submit">Send Reset Link</button>
     </form>

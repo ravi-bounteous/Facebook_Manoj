@@ -164,11 +164,11 @@ describe("password reset confirm", () => {
   it("sends a confirmation security notice email with no actionable link (AC17)", async () => {
     await authService.register("oscar@example.com", VALID_CREDENTIAL);
     const requestEmailService = new FakeEmailService();
-    await passwordResetService.requestReset("oscar@example.com", undefined, requestEmailService);
+    await passwordResetService.requestReset("oscar@example.com", { now: () => new Date() }, requestEmailService);
     const token = extractToken(requestEmailService.sent[0].body);
 
     const confirmEmailService = new FakeEmailService();
-    await passwordResetService.resetPassword(token, RESET_CREDENTIAL, undefined, confirmEmailService);
+    await passwordResetService.resetPassword(token, RESET_CREDENTIAL, { now: () => new Date() }, confirmEmailService);
 
     expect(confirmEmailService.sent).toHaveLength(1);
     expect(confirmEmailService.sent[0].to).toBe("oscar@example.com");

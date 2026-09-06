@@ -5,6 +5,7 @@ import * as authService from "../../src/services/authService";
 import * as passwordResetService from "../../src/services/passwordResetService";
 import { FakeEmailService } from "../fixtures/fakeEmailService";
 import { VALID_CREDENTIAL } from "../fixtures/credentials";
+import { config } from "../../src/config";
 
 const app = createApp();
 
@@ -21,6 +22,15 @@ describe("password reset request", () => {
 
     const rows = await knex("password_reset_tokens");
     expect(rows).toHaveLength(1);
+  });
+
+  it("sends an absolute reset link that will resolve correctly from an email client (AC1)", async () => {
+    await authService.register("felix@example.com", VALID_CREDENTIAL);
+    const emailService = new FakeEmailService();
+
+    await passwordResetService.requestReset("felix@example.com", undefined, emailService);
+
+    expect(emailService.sent[0].body).toContain(`${config.emailBaseUrl}/reset-password?token=`);
   });
 
   it("shows the same generic confirmation message for an unregistered email (AC2)", async () => {
@@ -45,5 +55,10 @@ describe("password reset request", () => {
     expect(emailService.sent).toHaveLength(0);
     const rows = await knex("password_reset_tokens");
     expect(rows).toHaveLength(0);
+  });
+
+  it("returns 400 instead of crashing when email is missing", async () => {
+    const res = await request(app).post("/api/auth/password-reset/request").send({});
+    expect(res.status).toBe(400);
   });
 });

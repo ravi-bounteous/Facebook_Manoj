@@ -27,7 +27,7 @@ describe("ForgotPassword page", () => {
     fillAndSubmit("registered@example.com");
 
     await waitFor(() => expect(spy).toHaveBeenCalledWith("registered@example.com"));
-    expect(await screen.findByText(/if that email is registered/i)).toBeInTheDocument();
+    expect(await screen.findByRole("status")).toHaveTextContent(/if that email is registered/i);
   });
 
   it("shows the same generic confirmation message for an unregistered email (AC2)", async () => {
