@@ -5,7 +5,12 @@ import * as authService from "../../src/services/authService";
 import * as passwordResetService from "../../src/services/passwordResetService";
 import { InvalidResetTokenError } from "../../src/services/errors";
 import { FakeEmailService } from "../fixtures/fakeEmailService";
-import { VALID_CREDENTIAL, WEAK_CREDENTIAL } from "../fixtures/credentials";
+import {
+  VALID_CREDENTIAL,
+  WEAK_CREDENTIAL,
+  RESET_CREDENTIAL,
+  OTHER_RESET_CREDENTIAL,
+} from "../fixtures/credentials";
 import { Clock } from "../../src/utils/clock";
 
 const app = createApp();
@@ -33,11 +38,11 @@ describe("password reset confirm", () => {
 
     const res = await request(app)
       .post("/api/auth/password-reset/confirm")
-      .send({ token, password: "NewPassw0rd" });
+      .send({ token, password: RESET_CREDENTIAL });
 
     expect(res.status).toBe(200);
 
-    const login = await request(app).post("/api/auth/login").send({ email: "frank@example.com", password: "NewPassw0rd" });
+    const login = await request(app).post("/api/auth/login").send({ email: "frank@example.com", password: RESET_CREDENTIAL });
     expect(login.status).toBe(200);
     const oldLogin = await request(app).post("/api/auth/login").send({ email: "frank@example.com", password: VALID_CREDENTIAL });
     expect(oldLogin.status).toBe(401);
@@ -47,13 +52,13 @@ describe("password reset confirm", () => {
     await authService.register("grace@example.com", VALID_CREDENTIAL);
     const token = await requestResetAndGetToken("grace@example.com");
 
-    const first = await request(app).post("/api/auth/password-reset/confirm").send({ token, password: "NewPassw0rd" });
+    const first = await request(app).post("/api/auth/password-reset/confirm").send({ token, password: RESET_CREDENTIAL });
     expect(first.status).toBe(200);
 
-    const second = await request(app).post("/api/auth/password-reset/confirm").send({ token, password: "AnotherPass1" });
+    const second = await request(app).post("/api/auth/password-reset/confirm").send({ token, password: OTHER_RESET_CREDENTIAL });
     expect(second.status).toBe(400);
 
-    const login = await request(app).post("/api/auth/login").send({ email: "grace@example.com", password: "NewPassw0rd" });
+    const login = await request(app).post("/api/auth/login").send({ email: "grace@example.com", password: RESET_CREDENTIAL });
     expect(login.status).toBe(200);
   });
 
@@ -64,7 +69,7 @@ describe("password reset confirm", () => {
 
     const wayLater = new Date(start.getTime() + 2 * 60 * 60 * 1000);
     await expect(
-      passwordResetService.resetPassword(token, "NewPassw0rd", fixedClock(wayLater))
+      passwordResetService.resetPassword(token, RESET_CREDENTIAL, fixedClock(wayLater))
     ).rejects.toThrow(InvalidResetTokenError);
 
     const login = await request(app).post("/api/auth/login").send({ email: "henry@example.com", password: VALID_CREDENTIAL });
@@ -81,7 +86,7 @@ describe("password reset confirm", () => {
     const login = await request(app).post("/api/auth/login").send({ email: "iris@example.com", password: VALID_CREDENTIAL });
     expect(login.status).toBe(200);
 
-    const stillUsable = await request(app).post("/api/auth/password-reset/confirm").send({ token, password: "GoodPass1" });
+    const stillUsable = await request(app).post("/api/auth/password-reset/confirm").send({ token, password: OTHER_RESET_CREDENTIAL });
     expect(stillUsable.status).toBe(200);
   });
 
@@ -90,8 +95,8 @@ describe("password reset confirm", () => {
     const token = await requestResetAndGetToken("jack@example.com");
 
     const results = await Promise.allSettled([
-      passwordResetService.resetPassword(token, "NewPassw0rd", { now: () => new Date() }),
-      passwordResetService.resetPassword(token, "OtherPass1", { now: () => new Date() }),
+      passwordResetService.resetPassword(token, RESET_CREDENTIAL, { now: () => new Date() }),
+      passwordResetService.resetPassword(token, OTHER_RESET_CREDENTIAL, { now: () => new Date() }),
     ]);
 
     const fulfilled = results.filter((r) => r.status === "fulfilled");
@@ -107,7 +112,7 @@ describe("password reset confirm", () => {
 
     const almostExpired = new Date(start.getTime() + 59 * 60 * 1000);
     await expect(
-      passwordResetService.resetPassword(token, "NewPassw0rd", fixedClock(almostExpired))
+      passwordResetService.resetPassword(token, RESET_CREDENTIAL, fixedClock(almostExpired))
     ).resolves.toBeUndefined();
   });
 
@@ -118,7 +123,7 @@ describe("password reset confirm", () => {
 
     const pastExpiry = new Date(start.getTime() + 61 * 60 * 1000);
     await expect(
-      passwordResetService.resetPassword(token, "NewPassw0rd", fixedClock(pastExpiry))
+      passwordResetService.resetPassword(token, RESET_CREDENTIAL, fixedClock(pastExpiry))
     ).rejects.toThrow(InvalidResetTokenError);
 
     const login = await request(app).post("/api/auth/login").send({ email: "liam@example.com", password: VALID_CREDENTIAL });
@@ -131,13 +136,13 @@ describe("password reset confirm", () => {
     await requestResetAndGetToken("mona@example.com");
 
     await expect(
-      passwordResetService.resetPassword(firstToken, "NewPassw0rd")
+      passwordResetService.resetPassword(firstToken, RESET_CREDENTIAL)
     ).rejects.toThrow(InvalidResetTokenError);
   });
 
   it("shows the same generic error for a malformed/tampered token (AC15)", async () => {
     await expect(
-      passwordResetService.resetPassword("not-a-real-token-abc123", "NewPassw0rd")
+      passwordResetService.resetPassword("not-a-real-token-abc123", RESET_CREDENTIAL)
     ).rejects.toThrow(InvalidResetTokenError);
   });
 
@@ -147,7 +152,7 @@ describe("password reset confirm", () => {
     const sessionB = await authService.login("nina@example.com", VALID_CREDENTIAL);
 
     const token = await requestResetAndGetToken("nina@example.com");
-    await passwordResetService.resetPassword(token, "NewPassw0rd");
+    await passwordResetService.resetPassword(token, RESET_CREDENTIAL);
 
     const refreshA = await request(app).post("/api/auth/refresh").send({ refreshToken: sessionA.refreshToken });
     const refreshB = await request(app).post("/api/auth/refresh").send({ refreshToken: sessionB.refreshToken });
@@ -163,7 +168,7 @@ describe("password reset confirm", () => {
     const token = extractToken(requestEmailService.sent[0].body);
 
     const confirmEmailService = new FakeEmailService();
-    await passwordResetService.resetPassword(token, "NewPassw0rd", undefined, confirmEmailService);
+    await passwordResetService.resetPassword(token, RESET_CREDENTIAL, undefined, confirmEmailService);
 
     expect(confirmEmailService.sent).toHaveLength(1);
     expect(confirmEmailService.sent[0].to).toBe("oscar@example.com");
