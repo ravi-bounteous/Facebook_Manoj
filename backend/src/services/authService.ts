@@ -32,7 +32,7 @@ export async function register(email: string, password: string): Promise<AuthRes
   try {
     [user] = await knex("users")
       .insert({ email: normalizedEmail, password_hash: passwordHash })
-      .returning(["id", "email"]);
+      .returning(["id", "email", "token_version"]);
   } catch (err: any) {
     if (err.code === POSTGRES_UNIQUE_VIOLATION) {
       throw new DuplicateEmailError();
@@ -41,8 +41,8 @@ export async function register(email: string, password: string): Promise<AuthRes
   }
 
   return {
-    accessToken: signAccessToken(user.id),
-    refreshToken: signRefreshToken(user.id),
+    accessToken: signAccessToken(user.id, user.token_version),
+    refreshToken: signRefreshToken(user.id, user.token_version),
     user: { id: user.id, email: user.email },
   };
 }
@@ -68,8 +68,8 @@ export async function login(email: string, password: string, clock: Clock = syst
   await knex("users").where({ id: user.id }).update({ failed_login_attempts: 0, locked_until: null });
 
   return {
-    accessToken: signAccessToken(user.id),
-    refreshToken: signRefreshToken(user.id),
+    accessToken: signAccessToken(user.id, user.token_version),
+    refreshToken: signRefreshToken(user.id, user.token_version),
     user: { id: user.id, email: user.email },
   };
 }
@@ -85,5 +85,9 @@ async function recordFailedAttempt(userId: string, currentAttempts: number, cloc
 
 export async function refresh(refreshToken: string): Promise<{ accessToken: string }> {
   const payload = verifyRefreshToken(refreshToken);
-  return { accessToken: signAccessToken(payload.sub) };
+  const user = await knex("users").where({ id: payload.sub }).first();
+  if (!user || (payload.ver ?? 0) !== user.token_version) {
+    throw new InvalidCredentialsError();
+  }
+  return { accessToken: signAccessToken(user.id, user.token_version) };
 }

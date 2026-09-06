@@ -1,5 +1,5 @@
 import { FormEvent, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import * as authApi from "../api/authApi";
 
 export function Login() {
@@ -32,6 +32,7 @@ export function Login() {
       {error && <p role="alert">{error}</p>}
 
       <button type="submit">Log In</button>
+      <Link to="/forgot-password">Forgot password?</Link>
     </form>
   );
 }

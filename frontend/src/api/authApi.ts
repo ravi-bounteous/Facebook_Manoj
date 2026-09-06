@@ -42,6 +42,14 @@ export function logout(): void {
   tokenStorage.clear();
 }
 
+export async function requestPasswordReset(email: string): Promise<{ message: string }> {
+  return postJson("/auth/password-reset/request", { email });
+}
+
+export async function resetPassword(token: string, password: string): Promise<void> {
+  await postJson("/auth/password-reset/confirm", { token, password });
+}
+
 async function tryRefresh(): Promise<boolean> {
   const refreshToken = tokenStorage.getRefreshToken();
   if (!refreshToken) return false;

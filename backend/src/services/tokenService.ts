@@ -3,16 +3,17 @@ import { config } from "../config";
 
 export interface TokenPayload extends jwt.JwtPayload {
   sub: string;
+  ver?: number;
 }
 
-export function signAccessToken(userId: string): string {
-  return jwt.sign({ sub: userId }, config.accessTokenSecret, {
+export function signAccessToken(userId: string, tokenVersion = 0): string {
+  return jwt.sign({ sub: userId, ver: tokenVersion }, config.accessTokenSecret, {
     expiresIn: config.accessTokenTtl,
   } as jwt.SignOptions);
 }
 
-export function signRefreshToken(userId: string): string {
-  return jwt.sign({ sub: userId }, config.refreshTokenSecret, {
+export function signRefreshToken(userId: string, tokenVersion = 0): string {
+  return jwt.sign({ sub: userId, ver: tokenVersion }, config.refreshTokenSecret, {
     expiresIn: config.refreshTokenTtl,
   } as jwt.SignOptions);
 }

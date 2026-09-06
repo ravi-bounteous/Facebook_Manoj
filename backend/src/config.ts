@@ -21,5 +21,7 @@ export const config = {
   refreshTokenTtl: process.env.REFRESH_TOKEN_TTL || "7d",
   lockoutThreshold: Number(process.env.LOCKOUT_THRESHOLD || 5),
   lockoutDurationMs: Number(process.env.LOCKOUT_DURATION_MS || 15 * 60 * 1000),
+  passwordResetTtlMs: Number(process.env.PASSWORD_RESET_TTL_MS || 60 * 60 * 1000),
+  passwordResetRateLimitPerHour: Number(process.env.PASSWORD_RESET_RATE_LIMIT_PER_HOUR || 5),
   port: Number(process.env.ARC_DEV_PORT || 8001),
 };
