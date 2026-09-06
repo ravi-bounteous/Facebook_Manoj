@@ -7,7 +7,7 @@ beforeAll(async () => {
 });
 
 beforeEach(async () => {
-  await knex.raw("TRUNCATE TABLE tasks, users CASCADE");
+  await knex.raw("TRUNCATE TABLE tasks, password_reset_tokens, users CASCADE");
 });
 
 afterAll(async () => {

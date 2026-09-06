@@ -25,3 +25,10 @@ export class AccountLockedError extends Error {
     this.name = "AccountLockedError";
   }
 }
+
+export class InvalidResetTokenError extends Error {
+  constructor() {
+    super("This password reset link is invalid or has expired.");
+    this.name = "InvalidResetTokenError";
+  }
+}

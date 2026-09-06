@@ -5,3 +5,5 @@ export const NO_UPPERCASE_CREDENTIAL = "password0";
 export const NO_LOWERCASE_CREDENTIAL = "PASSWORD0";
 export const NO_DIGIT_CREDENTIAL = "Password";
 export const WEAK_CREDENTIAL = "weak";
+export const RESET_CREDENTIAL = "NewPassw0rd";
+export const OTHER_RESET_CREDENTIAL = "OtherPass1";

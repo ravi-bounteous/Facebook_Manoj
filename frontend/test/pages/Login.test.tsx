@@ -10,6 +10,7 @@ function renderLogin() {
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route path="/tasks" element={<div>Task List</div>} />
+        <Route path="/forgot-password" element={<div>Forgot Password Page</div>} />
       </Routes>
     </MemoryRouter>
   );
@@ -47,5 +48,13 @@ describe("Login page", () => {
     fillAndSubmit("a@b.com", "wrong");
 
     expect(await screen.findByText(/invalid email or password/i)).toBeInTheDocument();
+  });
+
+  it("navigates to /forgot-password when the forgot-password link is clicked", () => {
+    renderLogin();
+
+    fireEvent.click(screen.getByRole("link", { name: /forgot password/i }));
+
+    expect(screen.getByText(/forgot password page/i)).toBeInTheDocument();
   });
 });

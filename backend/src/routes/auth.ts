@@ -1,6 +1,15 @@
 import { Router, Request, Response } from "express";
 import * as authService from "../services/authService";
-import { AccountLockedError, DuplicateEmailError, InvalidCredentialsError, ValidationError } from "../services/errors";
+import * as passwordResetService from "../services/passwordResetService";
+import {
+  AccountLockedError,
+  DuplicateEmailError,
+  InvalidCredentialsError,
+  InvalidResetTokenError,
+  ValidationError,
+} from "../services/errors";
+
+const GENERIC_RESET_REQUEST_MESSAGE = "If that email is registered, a reset link has been sent.";
 
 export const authRouter = Router();
 
@@ -36,6 +45,47 @@ authRouter.post("/login", async (req: Request, res: Response) => {
       res.status(401).json({ error: err.message });
       return;
     }
+    throw err;
+  }
+});
+
+authRouter.post("/password-reset/request", async (req: Request, res: Response) => {
+  const startedAt = Date.now();
+  const { email } = req.body ?? {};
+  try {
+    await passwordResetService.requestReset(email);
+    res.status(200).json({ message: GENERIC_RESET_REQUEST_MESSAGE });
+    console.info(`[metrics] route=password-reset/request status=200 duration_ms=${Date.now() - startedAt}`);
+  } catch (err) {
+    if (err instanceof ValidationError) {
+      res.status(400).json({ error: err.message });
+      console.info(`[metrics] route=password-reset/request status=400 duration_ms=${Date.now() - startedAt}`);
+      return;
+    }
+    console.error(`[metrics] route=password-reset/request status=500 duration_ms=${Date.now() - startedAt}`);
+    throw err;
+  }
+});
+
+authRouter.post("/password-reset/confirm", async (req: Request, res: Response) => {
+  const startedAt = Date.now();
+  const { token, password } = req.body ?? {};
+  try {
+    await passwordResetService.resetPassword(token, password);
+    res.status(200).json({});
+    console.info(`[metrics] route=password-reset/confirm status=200 duration_ms=${Date.now() - startedAt}`);
+  } catch (err) {
+    if (err instanceof InvalidResetTokenError) {
+      res.status(400).json({ error: err.message });
+      console.info(`[metrics] route=password-reset/confirm status=400 duration_ms=${Date.now() - startedAt}`);
+      return;
+    }
+    if (err instanceof ValidationError) {
+      res.status(400).json({ error: err.message });
+      console.info(`[metrics] route=password-reset/confirm status=400 duration_ms=${Date.now() - startedAt}`);
+      return;
+    }
+    console.error(`[metrics] route=password-reset/confirm status=500 duration_ms=${Date.now() - startedAt}`);
     throw err;
   }
 });
