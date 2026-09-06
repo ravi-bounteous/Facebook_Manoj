@@ -183,6 +183,7 @@ describe("TaskForm edit mode", () => {
 
     renderEdit("task-1");
 
+    expect(await screen.findByRole("alert")).toHaveTextContent(/not found/i);
     expect(await screen.findByText(/task list/i)).toBeInTheDocument();
   });
 });

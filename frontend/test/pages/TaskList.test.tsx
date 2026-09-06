@@ -33,6 +33,40 @@ describe("TaskList", () => {
     expect(screen.queryByText("B's task")).not.toBeInTheDocument();
   });
 
+  it("displays priority, category, due date, tags, and an edit link for each task", async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        tasks: [
+          {
+            id: "1",
+            title: "Full task",
+            priority: "high",
+            category: "work",
+            due_date: "2026-01-15",
+            tags: ["urgent", "billing"],
+            created_at: "",
+          },
+        ],
+      }),
+    }) as any;
+
+    render(
+      <MemoryRouter>
+        <TaskList />
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByText("Full task")).toBeInTheDocument();
+    expect(screen.getByText(/\(high\)/)).toBeInTheDocument();
+    expect(screen.getByText(/\[work\]/)).toBeInTheDocument();
+    expect(screen.getByText(/due 2026-01-15/)).toBeInTheDocument();
+    expect(screen.getByText(/tags: urgent, billing/)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /edit full task/i })).toHaveAttribute("href", "/tasks/1/edit");
+    expect(screen.getByRole("link", { name: /new task/i })).toHaveAttribute("href", "/tasks/new");
+  });
+
   it("refreshes the access token and retries after a 401 (AC23)", async () => {
     const fetchMock = vi
       .fn()

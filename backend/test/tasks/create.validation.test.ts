@@ -24,6 +24,25 @@ describe("POST /api/tasks validation", () => {
     expect(await countTasks()).toBe(0);
   });
 
+  it("rejects a non-string title with a 400 validation error instead of a 500", async () => {
+    const token = await registerUser("v1b@example.com");
+    const res = await request(app).post("/api/tasks").set("Authorization", `Bearer ${token}`).send({ title: 123 });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBeTruthy();
+    expect(await countTasks()).toBe(0);
+  });
+
+  it("rejects a non-string description with a 400 validation error instead of a 500", async () => {
+    const token = await registerUser("v1c@example.com");
+    const res = await request(app)
+      .post("/api/tasks")
+      .set("Authorization", `Bearer ${token}`)
+      .send({ title: "Task", description: 456 });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBeTruthy();
+    expect(await countTasks()).toBe(0);
+  });
+
   it("rejects a whitespace-only title (AC28, AC29)", async () => {
     const token = await registerUser("v2@example.com");
     const res = await request(app).post("/api/tasks").set("Authorization", `Bearer ${token}`).send({ title: "   " });

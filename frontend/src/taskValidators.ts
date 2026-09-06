@@ -27,7 +27,7 @@ export function validateTaskForm(values: TaskFormValues): string | null {
   if (values.title.trim().length > MAX_TITLE_LENGTH) {
     return `Title must be at most ${MAX_TITLE_LENGTH} characters`;
   }
-  if (values.description.length > MAX_DESCRIPTION_LENGTH) {
+  if (values.description.trim().length > MAX_DESCRIPTION_LENGTH) {
     return `Description must be at most ${MAX_DESCRIPTION_LENGTH} characters`;
   }
   if (values.due_date && !isValidCalendarDate(values.due_date)) {

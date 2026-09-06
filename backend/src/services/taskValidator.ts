@@ -31,7 +31,10 @@ function isValidCalendarDate(value: string): boolean {
 }
 
 export function validateTaskInput(input: TaskInput): ValidatedTask {
-  const title = input.title?.trim() ?? "";
+  if (typeof input.title !== "string") {
+    throw new ValidationError("Title must be a string");
+  }
+  const title = input.title.trim();
   if (!title) {
     throw new ValidationError("Title is required");
   }
@@ -39,6 +42,9 @@ export function validateTaskInput(input: TaskInput): ValidatedTask {
     throw new ValidationError(`Title must be at most ${MAX_TITLE_LENGTH} characters`);
   }
 
+  if (input.description != null && typeof input.description !== "string") {
+    throw new ValidationError("Description must be a string");
+  }
   const description = input.description?.trim() ?? "";
   if (description.length > MAX_DESCRIPTION_LENGTH) {
     throw new ValidationError(`Description must be at most ${MAX_DESCRIPTION_LENGTH} characters`);
