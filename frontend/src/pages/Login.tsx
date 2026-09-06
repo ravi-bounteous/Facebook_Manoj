@@ -1,5 +1,5 @@
 import { FormEvent, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import * as authApi from "../api/authApi";
 
 export function Login() {
@@ -7,6 +7,7 @@ export function Login() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
+  const location = useLocation();
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
@@ -14,7 +15,8 @@ export function Login() {
 
     try {
       await authApi.login(email, password);
-      navigate("/tasks");
+      const from = (location.state as { from?: { pathname: string } } | null)?.from?.pathname;
+      navigate(from || "/tasks");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Login failed");
     }
