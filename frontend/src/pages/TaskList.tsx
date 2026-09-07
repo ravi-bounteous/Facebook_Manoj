@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { apiFetch } from "../api/authApi";
 import { LogoutButton } from "../components/LogoutButton";
 
@@ -7,38 +7,58 @@ interface Task {
   title: string;
   created_at: string;
   completed: boolean;
+  due_date: string | null;
+  priority: string;
 }
+
+type SortColumn = "due_date" | "priority" | "created_at";
+type SortDirection = "asc" | "desc";
+
+const COLUMNS: { id: SortColumn; label: string }[] = [
+  { id: "due_date", label: "Due Date" },
+  { id: "priority", label: "Priority" },
+  { id: "created_at", label: "Created" },
+];
 
 const FOCUSABLE_SELECTOR = 'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
 
 export function TaskList() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
+  const [initialLoad, setInitialLoad] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [sortBy, setSortBy] = useState<SortColumn>("due_date");
+  const [sortDir, setSortDir] = useState<SortDirection>("asc");
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
   const confirmButtonRef = useRef<HTMLButtonElement>(null);
   const rootRef = useRef<HTMLDivElement>(null);
   const lastFocusedElementRef = useRef<HTMLElement | null>(null);
 
-  async function loadTasks() {
+  const loadTasks = useCallback(async () => {
+    setLoading(true);
     try {
-      const res = await apiFetch("/tasks");
+      const res = await apiFetch(`/tasks?sortBy=${sortBy}&sortDir=${sortDir}&page=${page}`);
       if (!res.ok) {
         throw new Error("Failed to load tasks");
       }
       const data = await res.json();
       setTasks(data.tasks);
+      setTotalPages(data.totalPages);
+      setError(null);
     } catch {
       setError("Failed to load tasks");
     } finally {
       setLoading(false);
+      setInitialLoad(false);
     }
-  }
+  }, [sortBy, sortDir, page]);
 
   useEffect(() => {
     loadTasks();
-  }, []);
+  }, [loadTasks]);
 
   async function handleToggle(taskId: string) {
     try {
@@ -128,35 +148,83 @@ export function TaskList() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pendingDeleteTask]);
 
+  function handleHeaderClick(columnId: SortColumn) {
+    setSortDir((currentDir) => {
+      if (sortBy === columnId) {
+        return currentDir === "asc" ? "desc" : "asc";
+      }
+      return "asc";
+    });
+    setSortBy(columnId);
+    setPage(1);
+  }
+
   return (
     <div>
       <div ref={rootRef}>
         <h1>Task List</h1>
-        {loading && <p>Loading...</p>}
+        {initialLoad && loading && <p>Loading...</p>}
         {error && <p role="alert">{error}</p>}
-        {!loading && (
-          <ul>
-            {tasks.map((task) => (
-              <li key={task.id}>
-                <label>
-                  <input
-                    type="checkbox"
-                    checked={task.completed}
-                    aria-label={task.title}
-                    onChange={() => handleToggle(task.id)}
-                  />
-                  {task.title}
-                </label>
-                <button
-                  type="button"
-                  aria-label={`Delete ${task.title}`}
-                  onClick={() => openDeleteConfirmation(task.id)}
-                >
-                  Delete
-                </button>
-              </li>
-            ))}
-          </ul>
+        {!initialLoad && !error && (
+          <>
+            <table>
+              <thead>
+                <tr>
+                  <th>Title</th>
+                  {COLUMNS.map((column) => (
+                    <th key={column.id}>
+                      <button type="button" onClick={() => handleHeaderClick(column.id)}>
+                        {column.label}
+                        {sortBy === column.id ? (sortDir === "asc" ? " ▲" : " ▼") : ""}
+                      </button>
+                    </th>
+                  ))}
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {tasks.map((task) => (
+                  <tr key={task.id}>
+                    <td>
+                      <label>
+                        <input
+                          type="checkbox"
+                          checked={task.completed}
+                          aria-label={task.title}
+                          onChange={() => handleToggle(task.id)}
+                        />
+                        {task.title}
+                      </label>
+                    </td>
+                    <td>{task.due_date ?? ""}</td>
+                    <td>{task.priority}</td>
+                    <td>{task.created_at}</td>
+                    <td>
+                      <button
+                        type="button"
+                        aria-label={`Delete ${task.title}`}
+                        onClick={() => openDeleteConfirmation(task.id)}
+                      >
+                        Delete
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {tasks.length === 0 && <p>No tasks to display.</p>}
+            <div>
+              <button type="button" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
+                Previous
+              </button>
+              <span>
+                Page {page} of {totalPages}
+              </span>
+              <button type="button" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)}>
+                Next
+              </button>
+            </div>
+          </>
         )}
         <LogoutButton />
       </div>
