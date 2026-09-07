@@ -3,13 +3,14 @@ import cors from "cors";
 import { authRouter } from "./routes/auth";
 import { tasksRouter } from "./routes/tasks";
 import { metricsRegistry, requestMetrics } from "./metrics";
+import { requireAuth } from "./middleware/requireAuth";
 
 export function createApp(): Express {
   const app = express();
   app.use(cors());
   app.use(express.json());
   app.use(requestMetrics);
-  app.get("/metrics", async (_req: Request, res: Response) => {
+  app.get("/metrics", requireAuth, async (_req: Request, res: Response) => {
     res.set("Content-Type", metricsRegistry.contentType);
     res.end(await metricsRegistry.metrics());
   });

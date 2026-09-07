@@ -21,7 +21,7 @@ export const httpRequestDurationSeconds = new Histogram({
 export function requestMetrics(req: Request, res: Response, next: NextFunction): void {
   const stopTimer = httpRequestDurationSeconds.startTimer();
   res.on("finish", () => {
-    const route = req.route ? `${req.baseUrl}${req.route.path}` : req.path;
+    const route = req.route ? `${req.baseUrl}${req.route.path}` : "404";
     const labels = { method: req.method, route, status_code: String(res.statusCode) };
     httpRequestsTotal.inc(labels);
     stopTimer(labels);
