@@ -48,14 +48,13 @@ describe("ResetPassword page", () => {
   });
 
   it("shows an error message and does not navigate for a weak password (AC7)", async () => {
-    vi.spyOn(authApi, "resetPassword").mockRejectedValue(
-      new Error("Password must be at least 8 characters")
-    );
+    const spy = vi.spyOn(authApi, "resetPassword");
 
     renderResetPassword("valid-token");
     fillAndSubmit("weak");
 
     expect(await screen.findByText(/8 characters/i)).toBeInTheDocument();
     expect(screen.queryByText(/log in page/i)).not.toBeInTheDocument();
+    expect(spy).not.toHaveBeenCalled();
   });
 });

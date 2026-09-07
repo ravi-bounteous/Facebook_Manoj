@@ -78,8 +78,13 @@ export async function login(email: string, password: string, clock: Clock = syst
 async function recordFailedAttempt(userId: string, currentAttempts: number, clock: Clock): Promise<void> {
   const attempts = currentAttempts + 1;
   const update: Record<string, unknown> = { failed_login_attempts: attempts };
+  console.info(`[auth] failed_login_attempt user_id=${userId} attempts=${attempts}`);
   if (attempts >= config.lockoutThreshold) {
-    update.locked_until = new Date(clock.now().getTime() + config.lockoutDurationMs);
+    const lockedUntil = new Date(clock.now().getTime() + config.lockoutDurationMs);
+    update.locked_until = lockedUntil;
+    console.warn(
+      `[auth] account_locked user_id=${userId} reason="failed_login_threshold_exceeded" locked_until=${lockedUntil.toISOString()}`
+    );
   }
   await knex("users").where({ id: userId }).update(update);
 }

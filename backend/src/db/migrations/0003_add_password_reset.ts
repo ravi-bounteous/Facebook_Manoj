@@ -12,6 +12,7 @@ export async function up(knex: Knex): Promise<void> {
     table.timestamp("created_at", { useTz: true }).notNullable().defaultTo(knex.fn.now());
     table.timestamp("expires_at", { useTz: true }).notNullable();
     table.timestamp("used_at", { useTz: true }).nullable();
+    table.index(["user_id"]);
   });
 }
 

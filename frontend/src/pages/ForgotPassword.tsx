@@ -4,11 +4,17 @@ import * as authApi from "../api/authApi";
 export function ForgotPassword() {
   const [email, setEmail] = useState("");
   const [message, setMessage] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
-    const result = await authApi.requestPasswordReset(email);
-    setMessage(result.message);
+    setError(null);
+    try {
+      const result = await authApi.requestPasswordReset(email);
+      setMessage(result.message);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong. Please try again.");
+    }
   }
 
   return (
@@ -23,6 +29,7 @@ export function ForgotPassword() {
       />
 
       {message && <p role="status">{message}</p>}
+      {error && <p role="alert">{error}</p>}
 
       <button type="submit">Send Reset Link</button>
     </form>
