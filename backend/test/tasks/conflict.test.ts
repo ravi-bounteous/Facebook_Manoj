@@ -16,7 +16,7 @@ describe("PATCH/DELETE /api/tasks/:id conflicts (AC6)", () => {
       .set("Authorization", `Bearer ${user.body.accessToken}`);
 
     expect(res.status).toBe(404);
-    expect(res.body.error).toBeTruthy();
+    expect(res.body.error).toBe("Task not found");
   });
 
   it("returns 404 with a clear error when deleting an already-deleted task", async () => {
@@ -29,7 +29,7 @@ describe("PATCH/DELETE /api/tasks/:id conflicts (AC6)", () => {
       .set("Authorization", `Bearer ${user.body.accessToken}`);
 
     expect(res.status).toBe(404);
-    expect(res.body.error).toBeTruthy();
+    expect(res.body.error).toBe("Task not found");
   });
 
   it("returns 404 when toggling or deleting another user's task", async () => {

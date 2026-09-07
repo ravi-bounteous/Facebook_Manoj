@@ -166,15 +166,26 @@ export function TaskList() {
           role="dialog"
           aria-modal="true"
           aria-label={`Confirm delete ${pendingDeleteTask.title}`}
+          style={{ position: "fixed", inset: 0, zIndex: 1 }}
         >
-          <div className="dialog-overlay" onClick={closeDeleteConfirmation} />
-          <p>Delete "{pendingDeleteTask.title}"? This cannot be undone.</p>
-          <button ref={confirmButtonRef} type="button" onClick={() => handleConfirmDelete(pendingDeleteTask.id)}>
-            Confirm
-          </button>
-          <button type="button" onClick={closeDeleteConfirmation}>
-            Cancel
-          </button>
+          <div
+            className="dialog-overlay"
+            onClick={closeDeleteConfirmation}
+            style={{
+              position: "fixed",
+              inset: 0,
+              backgroundColor: "rgba(0, 0, 0, 0.5)",
+            }}
+          />
+          <div style={{ position: "relative", zIndex: 1 }}>
+            <p>Delete "{pendingDeleteTask.title}"? This cannot be undone.</p>
+            <button ref={confirmButtonRef} type="button" onClick={() => handleConfirmDelete(pendingDeleteTask.id)}>
+              Confirm
+            </button>
+            <button type="button" onClick={closeDeleteConfirmation}>
+              Cancel
+            </button>
+          </div>
         </div>
       )}
     </div>

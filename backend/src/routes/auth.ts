@@ -12,10 +12,22 @@ authRouter.post("/register", async (req: Request, res: Response, next: NextFunct
     res.status(201).json(result);
   } catch (err) {
     if (err instanceof ValidationError) {
+      console.error(
+        JSON.stringify({
+          event: "auth.register.validation_error",
+          error: err.message,
+        })
+      );
       res.status(400).json({ error: err.message });
       return;
     }
     if (err instanceof DuplicateEmailError) {
+      console.error(
+        JSON.stringify({
+          event: "auth.register.duplicate_email",
+          error: err.message,
+        })
+      );
       res.status(409).json({ error: err.message });
       return;
     }
@@ -30,10 +42,24 @@ authRouter.post("/login", async (req: Request, res: Response, next: NextFunction
     res.status(200).json(result);
   } catch (err) {
     if (err instanceof AccountLockedError) {
+      console.error(
+        JSON.stringify({
+          event: "auth.login.account_locked",
+          email,
+          error: err.message,
+        })
+      );
       res.status(423).json({ error: err.message });
       return;
     }
     if (err instanceof InvalidCredentialsError) {
+      console.error(
+        JSON.stringify({
+          event: "auth.login.invalid_credentials",
+          email,
+          error: err.message,
+        })
+      );
       res.status(401).json({ error: err.message });
       return;
     }
