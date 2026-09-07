@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from "express";
+import jwt from "jsonwebtoken";
 import { verifyAccessToken } from "../services/tokenService";
 
 export interface AuthenticatedRequest extends Request {
@@ -18,7 +19,17 @@ export function requireAuth(req: AuthenticatedRequest, res: Response, next: Next
     const payload = verifyAccessToken(token);
     req.user = { id: payload.sub };
     next();
-  } catch {
+  } catch (err) {
+    if (err instanceof jwt.JsonWebTokenError || err instanceof jwt.TokenExpiredError) {
+      res.status(401).json({ error: "Invalid or expired token" });
+      return;
+    }
+    console.error(
+      JSON.stringify({
+        event: "auth.requireAuth.error",
+        error: err instanceof Error ? err.message : String(err),
+      })
+    );
     res.status(401).json({ error: "Invalid or expired token" });
   }
 }

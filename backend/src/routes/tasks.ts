@@ -6,10 +6,25 @@ import { NotFoundError } from "../services/errors";
 
 export const tasksRouter = Router();
 
-tasksRouter.get("/", requireAuth, async (req: AuthenticatedRequest, res: Response) => {
-  const tasks = await listTasksForUser(req.user!.id);
-  res.status(200).json({ tasks });
-});
+tasksRouter.get(
+  "/",
+  requireAuth,
+  async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+    try {
+      const tasks = await listTasksForUser(req.user!.id);
+      res.status(200).json({ tasks });
+    } catch (err) {
+      console.error(
+        JSON.stringify({
+          event: "tasks.list.error",
+          userId: req.user!.id,
+          error: err instanceof Error ? err.message : String(err),
+        })
+      );
+      next(err);
+    }
+  }
+);
 
 tasksRouter.patch(
   "/:id",
