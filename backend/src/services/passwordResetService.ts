@@ -6,7 +6,6 @@ import { isValidPassword } from "./passwordPolicy";
 import { InvalidResetTokenError, ValidationError } from "./errors";
 import { systemClock, Clock } from "../utils/clock";
 import { EmailService, ConsoleEmailService } from "./emailService";
-import { setTokenVersion } from "./tokenVersionCache";
 import bcrypt from "bcrypt";
 
 const BCRYPT_ROUNDS = 10;
@@ -117,11 +116,6 @@ export async function resetPassword(
 
     return updatedUser;
   });
-
-  // Invalidate the cached token_version immediately so requireAuth/refresh see
-  // the new version on their very next check, rather than waiting out the
-  // cache TTL (see tokenVersionCache.ts).
-  setTokenVersion(user.id, user.token_version);
 
   await emailService.send({
     to: user.email,

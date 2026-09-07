@@ -6,8 +6,7 @@ import { isValidPassword } from "./passwordPolicy";
 import { signAccessToken, signRefreshToken, verifyRefreshToken } from "./tokenService";
 import { AccountLockedError, DuplicateEmailError, InvalidCredentialsError, ValidationError } from "./errors";
 import { systemClock, Clock } from "../utils/clock";
-import { validateTokenVersion } from "./sessionValidation";
-import { getTokenVersion } from "./tokenVersionCache";
+import { validateTokenVersion, getTokenVersion } from "./sessionValidation";
 
 const BCRYPT_ROUNDS = 10;
 const POSTGRES_UNIQUE_VIOLATION = "23505";
