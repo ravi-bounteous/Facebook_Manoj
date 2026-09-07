@@ -6,15 +6,24 @@ export async function listTasksForUser(userId: string) {
 }
 
 export async function toggleTaskCompletion(userId: string, taskId: string) {
-  const task = await knex("tasks").where({ id: taskId, user_id: userId }).first();
-  if (!task) {
+  const [updated] = await knex("tasks")
+    .where({ id: taskId, user_id: userId })
+    .update({ completed: knex.raw("NOT completed") })
+    .returning(["id", "title", "created_at", "completed"]);
+
+  if (!updated) {
     throw new NotFoundError();
   }
 
-  const [updated] = await knex("tasks")
-    .where({ id: taskId, user_id: userId })
-    .update({ completed: !task.completed })
-    .returning(["id", "title", "created_at", "completed"]);
+  console.log(
+    JSON.stringify({
+      event: "task.toggle",
+      userId,
+      taskId,
+      completed: updated.completed,
+      timestamp: new Date().toISOString(),
+    })
+  );
 
   return updated;
 }
@@ -24,4 +33,13 @@ export async function deleteTask(userId: string, taskId: string) {
   if (deletedCount === 0) {
     throw new NotFoundError();
   }
+
+  console.log(
+    JSON.stringify({
+      event: "task.delete",
+      userId,
+      taskId,
+      timestamp: new Date().toISOString(),
+    })
+  );
 }
