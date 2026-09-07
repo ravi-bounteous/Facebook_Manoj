@@ -47,7 +47,6 @@ export function TaskList() {
       const data = await res.json();
       setTasks(data.tasks);
       setTotalPages(data.totalPages);
-      setError(null);
     } catch {
       setError("Failed to load tasks");
     } finally {
