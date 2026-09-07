@@ -72,6 +72,7 @@ export function TaskList() {
 
   async function handleConfirmDelete(taskId: string) {
     setPendingDeleteId(null);
+    lastFocusedElementRef.current?.focus();
     lastFocusedElementRef.current = null;
     try {
       const res = await apiFetch(`/tasks/${taskId}`, { method: "DELETE" });

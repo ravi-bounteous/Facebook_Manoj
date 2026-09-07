@@ -2,11 +2,17 @@ import express, { Express, Request, Response, NextFunction } from "express";
 import cors from "cors";
 import { authRouter } from "./routes/auth";
 import { tasksRouter } from "./routes/tasks";
+import { metricsRegistry, requestMetrics } from "./metrics";
 
 export function createApp(): Express {
   const app = express();
   app.use(cors());
   app.use(express.json());
+  app.use(requestMetrics);
+  app.get("/metrics", async (_req: Request, res: Response) => {
+    res.set("Content-Type", metricsRegistry.contentType);
+    res.end(await metricsRegistry.metrics());
+  });
   app.use("/api/auth", authRouter);
   app.use("/api/tasks", tasksRouter);
   app.use((err: unknown, req: Request, res: Response, next: NextFunction) => {
