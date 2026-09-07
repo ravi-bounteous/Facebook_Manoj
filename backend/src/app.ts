@@ -1,4 +1,4 @@
-import express, { Express } from "express";
+import express, { Express, Request, Response, NextFunction } from "express";
 import cors from "cors";
 import { authRouter } from "./routes/auth";
 import { tasksRouter } from "./routes/tasks";
@@ -9,5 +9,20 @@ export function createApp(): Express {
   app.use(express.json());
   app.use("/api/auth", authRouter);
   app.use("/api/tasks", tasksRouter);
+  app.use((err: unknown, req: Request, res: Response, next: NextFunction) => {
+    if (res.headersSent) {
+      next(err);
+      return;
+    }
+    console.error(
+      JSON.stringify({
+        event: "unhandled_error",
+        path: req.path,
+        method: req.method,
+        error: err instanceof Error ? err.message : String(err),
+      })
+    );
+    res.status(500).json({ error: "Internal server error" });
+  });
   return app;
 }
