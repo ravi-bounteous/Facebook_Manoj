@@ -34,4 +34,32 @@ describe("GET /api/tasks/filter-options (AC11)", () => {
     expect(res.body.categories.sort()).toEqual(["Personal", "Work"]);
     expect(res.body.tags.sort()).toEqual(["billing", "urgent"]);
   });
+
+  it("excludes other users' categories and tags", async () => {
+    const userA = await registerUser("filteroptions-a@example.com");
+    const userB = await registerUser("filteroptions-b@example.com");
+
+    await knex("tasks").insert({
+      user_id: userA.user.id,
+      title: "a1",
+      category: "Work",
+      tags: knex.raw("ARRAY['urgent']"),
+    });
+    await knex("tasks").insert({
+      user_id: userB.user.id,
+      title: "b1",
+      category: "SecretCategory",
+      tags: knex.raw("ARRAY['secret-tag']"),
+    });
+
+    const res = await request(app)
+      .get("/api/tasks/filter-options")
+      .set("Authorization", `Bearer ${userA.accessToken}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.categories).toEqual(["Work"]);
+    expect(res.body.tags).toEqual(["urgent"]);
+    expect(res.body.categories).not.toContain("SecretCategory");
+    expect(res.body.tags).not.toContain("secret-tag");
+  });
 });

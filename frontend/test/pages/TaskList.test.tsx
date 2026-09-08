@@ -573,6 +573,46 @@ describe("TaskList", () => {
       expect(screen.getByRole("option", { name: "billing" })).toBeInTheDocument();
     });
 
+    it("shows an error when the filter-options endpoint fails", async () => {
+      const fetchMock = vi
+        .fn()
+        .mockResolvedValueOnce(
+          makeTasksResponse([{ id: "1", title: "WorkTask", created_at: "", due_date: null, priority: "Medium" }])
+        )
+        .mockResolvedValueOnce({ ok: false, status: 500, json: async () => ({}) });
+      globalThis.fetch = fetchMock as any;
+
+      render(
+        <MemoryRouter>
+          <TaskList />
+        </MemoryRouter>
+      );
+
+      await screen.findByText("WorkTask");
+
+      expect(await screen.findByRole("alert")).toHaveTextContent(/failed to load filter options/i);
+    });
+
+    it("shows an error when the filter-options request rejects with a network error", async () => {
+      const fetchMock = vi
+        .fn()
+        .mockResolvedValueOnce(
+          makeTasksResponse([{ id: "1", title: "WorkTask", created_at: "", due_date: null, priority: "Medium" }])
+        )
+        .mockRejectedValueOnce(new Error("network down"));
+      globalThis.fetch = fetchMock as any;
+
+      render(
+        <MemoryRouter>
+          <TaskList />
+        </MemoryRouter>
+      );
+
+      await screen.findByText("WorkTask");
+
+      expect(await screen.findByRole("alert")).toHaveTextContent(/failed to load filter options/i);
+    });
+
     it("replaces the previous category selection when a different one is chosen (AC14)", async () => {
       const fetchMock = vi
         .fn()

@@ -66,6 +66,7 @@ export function TaskList() {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [search, setSearch] = useState("");
+  const [searchInput, setSearchInput] = useState("");
   const [status, setStatus] = useState("");
   const [priorities, setPriorities] = useState<string[]>([]);
   const [tags, setTags] = useState<string[]>([]);
@@ -75,6 +76,7 @@ export function TaskList() {
   const [dateRangeError, setDateRangeError] = useState<string | null>(null);
   const [knownCategories, setKnownCategories] = useState<string[]>([]);
   const [knownTags, setKnownTags] = useState<string[]>([]);
+  const [filterOptionsError, setFilterOptionsError] = useState<string | null>(null);
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
   const confirmButtonRef = useRef<HTMLButtonElement>(null);
@@ -141,22 +143,34 @@ export function TaskList() {
     if (initialLoad || filterOptionsFetchedRef.current) return;
     filterOptionsFetchedRef.current = true;
     apiFetch("/tasks/filter-options")
-      .then((res) => (res.ok ? res.json() : null))
+      .then((res) => {
+        if (!res.ok) throw new Error("Failed to load filter options");
+        return res.json();
+      })
       .then((data) => {
-        if (!data) return;
         setKnownCategories((prev) => Array.from(new Set([...prev, ...(data.categories ?? [])])));
         setKnownTags((prev) => Array.from(new Set([...prev, ...(data.tags ?? [])])));
       })
-      .catch(() => {});
+      .catch(() => {
+        setFilterOptionsError("Failed to load filter options. Category and tag lists may be incomplete.");
+      });
   }, [initialLoad]);
+
+  useEffect(() => {
+    const handle = setTimeout(() => {
+      setPage(1);
+      setSearch(searchInput);
+    }, 300);
+    return () => clearTimeout(handle);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchInput]);
 
   function handleFilterChange() {
     setPage(1);
   }
 
   function handleSearchChange(value: string) {
-    handleFilterChange();
-    setSearch(value);
+    setSearchInput(value);
   }
 
   function handleStatusChange(value: string) {
@@ -191,6 +205,7 @@ export function TaskList() {
 
   function handleClearFilters() {
     handleFilterChange();
+    setSearchInput("");
     setSearch("");
     setStatus("");
     setPriorities([]);
@@ -308,7 +323,7 @@ export function TaskList() {
         <div>
           <label>
             Search
-            <input type="text" value={search} onChange={(e) => handleSearchChange(e.target.value)} />
+            <input type="text" value={searchInput} onChange={(e) => handleSearchChange(e.target.value)} />
           </label>
           <label>
             Status
@@ -368,6 +383,7 @@ export function TaskList() {
             Clear filters
           </button>
           {dateRangeError && <p role="alert">{dateRangeError}</p>}
+          {filterOptionsError && <p role="alert">{filterOptionsError}</p>}
         </div>
         {initialLoad && loading && <p>Loading...</p>}
         {error && <p role="alert">{error}</p>}
