@@ -11,8 +11,16 @@ tasksRouter.get(
   requireAuth,
   async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     try {
-      const tasks = await listTasksForUser(req.user!.id);
-      res.status(200).json({ tasks });
+      const { sortBy, sortDir, page } = req.query;
+      const parsedPage = typeof page === "string" ? parseInt(page, 10) : undefined;
+
+      const result = await listTasksForUser(req.user!.id, {
+        sortBy: typeof sortBy === "string" ? sortBy : undefined,
+        sortDir: typeof sortDir === "string" ? sortDir : undefined,
+        page: parsedPage && Number.isInteger(parsedPage) && parsedPage > 0 ? parsedPage : undefined,
+      });
+
+      res.status(200).json(result);
     } catch (err) {
       console.error(
         JSON.stringify({

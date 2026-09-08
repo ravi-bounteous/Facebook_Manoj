@@ -1,9 +1,17 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { TaskList } from "../../src/pages/TaskList";
 import { tokenStorage } from "../../src/api/tokenStorage";
+
+function makeTasksResponse(tasks: any[], page = 1, totalPages = 1) {
+  return {
+    ok: true,
+    status: 200,
+    json: async () => ({ tasks, page, pageSize: 10, totalCount: tasks.length, totalPages }),
+  };
+}
 
 function makeToken(exp: number) {
   const header = btoa(JSON.stringify({ alg: "HS256", typ: "JWT" }));
@@ -18,11 +26,9 @@ describe("TaskList", () => {
   });
 
   it("fetches and displays only the requesting user's tasks (AC15)", async () => {
-    globalThis.fetch = vi.fn().mockResolvedValue({
-      ok: true,
-      status: 200,
-      json: async () => ({ tasks: [{ id: "1", title: "A's task", created_at: "" }] }),
-    }) as any;
+    globalThis.fetch = vi
+      .fn()
+      .mockResolvedValue(makeTasksResponse([{ id: "1", title: "A's task", created_at: "", due_date: null, priority: "Medium" }])) as any;
 
     render(
       <MemoryRouter>
@@ -34,12 +40,119 @@ describe("TaskList", () => {
     expect(screen.queryByText("B's task")).not.toBeInTheDocument();
   });
 
+  it("fetches with the default sort params on initial mount (AC1)", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(makeTasksResponse([{ id: "1", title: "A", created_at: "", due_date: null, priority: "Medium" }]));
+    globalThis.fetch = fetchMock as any;
+
+    render(
+      <MemoryRouter>
+        <TaskList />
+      </MemoryRouter>
+    );
+
+    await screen.findByText("A");
+    expect(fetchMock.mock.calls[0][0]).toMatch(/sortBy=due_date/);
+    expect(fetchMock.mock.calls[0][0]).toMatch(/sortDir=asc/);
+  });
+
+  it("displays only the most recently requested response when an older request resolves later (AC10)", async () => {
+    let resolveSecond: (value: any) => void;
+    const secondResponse = new Promise((resolve) => {
+      resolveSecond = resolve;
+    });
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(makeTasksResponse([{ id: "1", title: "Initial", created_at: "", due_date: null, priority: "Medium" }]))
+      .mockReturnValueOnce(secondResponse)
+      .mockResolvedValueOnce(makeTasksResponse([{ id: "3", title: "Newer", created_at: "", due_date: null, priority: "Medium" }]));
+    globalThis.fetch = fetchMock as any;
+
+    render(
+      <MemoryRouter>
+        <TaskList />
+      </MemoryRouter>
+    );
+
+    await screen.findByText("Initial");
+
+    fireEvent.click(screen.getByText(/priority/i));
+    fireEvent.click(screen.getByText(/priority/i));
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3));
+    await screen.findByText("Newer");
+
+    resolveSecond!(makeTasksResponse([{ id: "2", title: "Older", created_at: "", due_date: null, priority: "Medium" }]));
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(screen.queryByText("Older")).not.toBeInTheDocument();
+    expect(screen.getByText("Newer")).toBeInTheDocument();
+  });
+
+  it("shows all 10 tasks on a single page with no additional pages (AC8)", async () => {
+    const tasks = Array.from({ length: 10 }, (_, i) => ({
+      id: String(i + 1),
+      title: `Task ${i + 1}`,
+      created_at: "",
+      due_date: null,
+      priority: "Medium",
+    }));
+    globalThis.fetch = vi.fn().mockResolvedValue(makeTasksResponse(tasks, 1, 1)) as any;
+
+    render(
+      <MemoryRouter>
+        <TaskList />
+      </MemoryRouter>
+    );
+
+    for (const task of tasks) {
+      expect(await screen.findByText(task.title)).toBeInTheDocument();
+    }
+    expect(screen.getByText(/page 1 of 1/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /previous/i })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /next/i })).toBeDisabled();
+  });
+
+  it("splits 11 tasks across two pages with 10 on page 1 and 1 on page 2 (AC9)", async () => {
+    const page1Tasks = Array.from({ length: 10 }, (_, i) => ({
+      id: String(i + 1),
+      title: `Task ${i + 1}`,
+      created_at: "",
+      due_date: null,
+      priority: "Medium",
+    }));
+    const page2Tasks = [{ id: "11", title: "Task 11", created_at: "", due_date: null, priority: "Medium" }];
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(makeTasksResponse(page1Tasks, 1, 2))
+      .mockResolvedValueOnce(makeTasksResponse(page2Tasks, 2, 2));
+    globalThis.fetch = fetchMock as any;
+
+    render(
+      <MemoryRouter>
+        <TaskList />
+      </MemoryRouter>
+    );
+
+    for (const task of page1Tasks) {
+      expect(await screen.findByText(task.title)).toBeInTheDocument();
+    }
+    expect(screen.getByText(/page 1 of 2/i)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /next/i }));
+
+    expect(await screen.findByText("Task 11")).toBeInTheDocument();
+    expect(screen.getByText(/page 2 of 2/i)).toBeInTheDocument();
+    expect(screen.queryByText("Task 1")).not.toBeInTheDocument();
+  });
+
   it("refreshes the access token and retries after a 401 (AC23)", async () => {
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce({ ok: false, status: 401, json: async () => ({}) })
       .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ accessToken: "new-access" }) })
-      .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ tasks: [{ id: "2", title: "Refreshed task", created_at: "" }] }) });
+      .mockResolvedValueOnce(makeTasksResponse([{ id: "2", title: "Refreshed task", created_at: "", due_date: null, priority: "Medium" }]));
     globalThis.fetch = fetchMock as any;
 
     render(
@@ -65,12 +178,104 @@ describe("TaskList", () => {
     await waitFor(() => expect(screen.getByRole("alert")).toBeInTheDocument());
   });
 
+  it("shows an empty-state message when there are no tasks (AC6)", async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue(makeTasksResponse([])) as any;
+
+    render(
+      <MemoryRouter>
+        <TaskList />
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByText(/no tasks/i)).toBeInTheDocument();
+  });
+
+  it("clicking a column header toggles sort direction and re-fetches (AC3, AC10)", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(makeTasksResponse([{ id: "1", title: "A", created_at: "", due_date: null, priority: "Medium" }]))
+      .mockResolvedValueOnce(makeTasksResponse([{ id: "1", title: "A", created_at: "", due_date: null, priority: "Medium" }]))
+      .mockResolvedValueOnce(makeTasksResponse([{ id: "1", title: "A", created_at: "", due_date: null, priority: "Medium" }]));
+    globalThis.fetch = fetchMock as any;
+
+    render(
+      <MemoryRouter>
+        <TaskList />
+      </MemoryRouter>
+    );
+
+    await screen.findByText("A");
+
+    fireEvent.click(screen.getByText(/priority/i));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    expect(fetchMock.mock.calls[1][0]).toMatch(/sortBy=priority/);
+    expect(fetchMock.mock.calls[1][0]).toMatch(/sortDir=asc/);
+
+    fireEvent.click(screen.getByText(/priority/i));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3));
+    expect(fetchMock.mock.calls[2][0]).toMatch(/sortDir=desc/);
+  });
+
+  it("rapid repeated clicks on the same header resolve to the last requested direction (AC10)", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(makeTasksResponse([{ id: "1", title: "A", created_at: "", due_date: null, priority: "Medium" }]));
+    globalThis.fetch = fetchMock as any;
+
+    render(
+      <MemoryRouter>
+        <TaskList />
+      </MemoryRouter>
+    );
+
+    await screen.findByText("A");
+
+    fireEvent.click(screen.getByText(/priority/i));
+    fireEvent.click(screen.getByText(/priority/i));
+    fireEvent.click(screen.getByText(/priority/i));
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(4));
+    const lastCallUrl = fetchMock.mock.calls[3][0];
+    expect(lastCallUrl).toMatch(/sortBy=priority/);
+    expect(lastCallUrl).toMatch(/sortDir=asc/);
+  });
+
+  it("navigates between pages and updates the page indicator, disabling controls at bounds (AC4, AC5, AC14, AC15)", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(makeTasksResponse([{ id: "1", title: "Page1Task", created_at: "", due_date: null, priority: "Medium" }], 1, 2))
+      .mockResolvedValueOnce(makeTasksResponse([{ id: "2", title: "Page2Task", created_at: "", due_date: null, priority: "Medium" }], 2, 2));
+    globalThis.fetch = fetchMock as any;
+
+    render(
+      <MemoryRouter>
+        <TaskList />
+      </MemoryRouter>
+    );
+
+    await screen.findByText("Page1Task");
+    expect(screen.getByText(/page 1 of 2/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /previous/i })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /next/i })).not.toBeDisabled();
+
+    fireEvent.click(screen.getByRole("button", { name: /next/i }));
+
+    await screen.findByText("Page2Task");
+    expect(screen.getByText(/page 2 of 2/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /next/i })).toBeDisabled();
+    expect(fetchMock.mock.calls[1][0]).toMatch(/page=2/);
+  });
+
   it("toggles an incomplete task to complete (AC1)", async () => {
     const user = userEvent.setup();
     const fetchMock = vi
       .fn()
-      .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ tasks: [{ id: "1", title: "A's task", created_at: "", completed: false }] }) })
-      .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ task: { id: "1", title: "A's task", created_at: "", completed: true } }) });
+      .mockResolvedValueOnce(
+        makeTasksResponse([{ id: "1", title: "A's task", created_at: "", due_date: null, priority: "Medium", completed: false }])
+      )
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({ task: { id: "1", title: "A's task", created_at: "", due_date: null, priority: "Medium", completed: true } }),
+      });
     globalThis.fetch = fetchMock as any;
 
     render(
@@ -92,8 +297,14 @@ describe("TaskList", () => {
     const user = userEvent.setup();
     const fetchMock = vi
       .fn()
-      .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ tasks: [{ id: "1", title: "A's task", created_at: "", completed: true }] }) })
-      .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ task: { id: "1", title: "A's task", created_at: "", completed: false } }) });
+      .mockResolvedValueOnce(
+        makeTasksResponse([{ id: "1", title: "A's task", created_at: "", due_date: null, priority: "Medium", completed: true }])
+      )
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({ task: { id: "1", title: "A's task", created_at: "", due_date: null, priority: "Medium", completed: false } }),
+      });
     globalThis.fetch = fetchMock as any;
 
     render(
@@ -112,11 +323,11 @@ describe("TaskList", () => {
 
   it("does not delete the task when the confirmation dialog is cancelled (AC4)", async () => {
     const user = userEvent.setup();
-    const fetchMock = vi.fn().mockResolvedValueOnce({
-      ok: true,
-      status: 200,
-      json: async () => ({ tasks: [{ id: "1", title: "A's task", created_at: "", completed: false }] }),
-    });
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        makeTasksResponse([{ id: "1", title: "A's task", created_at: "", due_date: null, priority: "Medium", completed: false }])
+      );
     globalThis.fetch = fetchMock as any;
 
     render(
@@ -138,11 +349,11 @@ describe("TaskList", () => {
 
   it("does not delete the task when Escape dismisses the dialog (AC4)", async () => {
     const user = userEvent.setup();
-    const fetchMock = vi.fn().mockResolvedValueOnce({
-      ok: true,
-      status: 200,
-      json: async () => ({ tasks: [{ id: "1", title: "A's task", created_at: "", completed: false }] }),
-    });
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        makeTasksResponse([{ id: "1", title: "A's task", created_at: "", due_date: null, priority: "Medium", completed: false }])
+      );
     globalThis.fetch = fetchMock as any;
 
     render(
@@ -166,7 +377,9 @@ describe("TaskList", () => {
     const user = userEvent.setup();
     const fetchMock = vi
       .fn()
-      .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ tasks: [{ id: "1", title: "A's task", created_at: "", completed: false }] }) })
+      .mockResolvedValueOnce(
+        makeTasksResponse([{ id: "1", title: "A's task", created_at: "", due_date: null, priority: "Medium", completed: false }])
+      )
       .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({}) });
     globalThis.fetch = fetchMock as any;
 
@@ -188,9 +401,11 @@ describe("TaskList", () => {
     const user = userEvent.setup();
     const fetchMock = vi
       .fn()
-      .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ tasks: [{ id: "1", title: "A's task", created_at: "", completed: false }] }) })
+      .mockResolvedValueOnce(
+        makeTasksResponse([{ id: "1", title: "A's task", created_at: "", due_date: null, priority: "Medium", completed: false }])
+      )
       .mockResolvedValueOnce({ ok: false, status: 404, json: async () => ({ error: "Task not found" }) })
-      .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ tasks: [] }) });
+      .mockResolvedValueOnce(makeTasksResponse([]));
     globalThis.fetch = fetchMock as any;
 
     render(
