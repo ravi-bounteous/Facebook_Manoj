@@ -36,6 +36,13 @@ tasksRouter.get(
       res.status(200).json(result);
     } catch (err) {
       if (err instanceof ValidationError) {
+        console.error(
+          JSON.stringify({
+            event: "tasks.list.validation_error",
+            userId: req.user!.id,
+            error: err.message,
+          })
+        );
         res.status(400).json({ error: err.message });
         return;
       }

@@ -446,7 +446,10 @@ describe("TaskList", () => {
       const fetchMock = vi
         .fn()
         .mockResolvedValueOnce(
-          makeTasksResponse([{ id: "1", title: "Meeting", created_at: "", due_date: null, priority: "Medium" }])
+          makeTasksResponse([
+            { id: "1", title: "Meeting", created_at: "", due_date: null, priority: "Medium" },
+            { id: "2", title: "SecondTask", created_at: "", due_date: null, priority: "Medium" },
+          ])
         )
         .mockResolvedValueOnce(makeFilterOptionsResponse())
         .mockResolvedValueOnce(
@@ -461,11 +464,16 @@ describe("TaskList", () => {
       );
 
       await screen.findByText("Meeting");
+      await screen.findByText("SecondTask");
 
       fireEvent.change(screen.getByLabelText(/search/i), { target: { value: "meet" } });
 
       await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3));
       expect(fetchMock.mock.calls[2][0]).toMatch(/search=meet/);
+      await waitFor(() => {
+        expect(screen.getByText("Meeting")).toBeInTheDocument();
+        expect(screen.queryByText("SecondTask")).not.toBeInTheDocument();
+      });
     });
 
     it("shows the empty-state message when filters match no tasks (AC5)", async () => {
@@ -642,11 +650,19 @@ describe("TaskList", () => {
       fireEvent.change(screen.getByLabelText(/category/i), { target: { value: "Work" } });
       await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3));
       expect(fetchMock.mock.calls[2][0]).toMatch(/category=Work/);
+      await waitFor(() => {
+        expect(screen.getByText("WorkTask")).toBeInTheDocument();
+        expect(screen.queryByText("PersonalTask")).not.toBeInTheDocument();
+      });
 
       fireEvent.change(screen.getByLabelText(/category/i), { target: { value: "Personal" } });
       await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(4));
       expect(fetchMock.mock.calls[3][0]).toMatch(/category=Personal/);
       expect(fetchMock.mock.calls[3][0]).not.toMatch(/category=Work/);
+      await waitFor(() => {
+        expect(screen.getByText("PersonalTask")).toBeInTheDocument();
+        expect(screen.queryByText("WorkTask")).not.toBeInTheDocument();
+      });
     });
 
     it("resets pagination to page 1 while preserving sort order when a filter changes (AC17, AC18)", async () => {
