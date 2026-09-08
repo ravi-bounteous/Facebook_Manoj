@@ -22,10 +22,16 @@ describe("GET /api/tasks pagination", () => {
     expect(page1.body.page).toBe(1);
     expect(page1.body.totalCount).toBe(15);
     expect(page1.body.totalPages).toBe(2);
+    expect(page1.body.tasks.map((t: any) => t.title)).toEqual(
+      Array.from({ length: 10 }, (_, i) => `task-${i}`)
+    );
 
     const page2 = await request(app).get("/api/tasks?page=2").set("Authorization", `Bearer ${user.accessToken}`);
     expect(page2.body.tasks).toHaveLength(5);
     expect(page2.body.page).toBe(2);
+    expect(page2.body.tasks.map((t: any) => t.title)).toEqual(
+      Array.from({ length: 5 }, (_, i) => `task-${i + 10}`)
+    );
   });
 
   it("returns a single page with all 10 tasks when there are exactly 10 (AC8)", async () => {
@@ -47,8 +53,12 @@ describe("GET /api/tasks pagination", () => {
 
     const page1 = await request(app).get("/api/tasks?page=1").set("Authorization", `Bearer ${user.accessToken}`);
     expect(page1.body.tasks).toHaveLength(10);
+    expect(page1.body.tasks.map((t: any) => t.title)).toEqual(
+      Array.from({ length: 10 }, (_, i) => `task-${i}`)
+    );
 
     const page2 = await request(app).get("/api/tasks?page=2").set("Authorization", `Bearer ${user.accessToken}`);
     expect(page2.body.tasks).toHaveLength(1);
+    expect(page2.body.tasks[0].title).toBe("task-10");
   });
 });

@@ -99,6 +99,16 @@ describe("listTasksForUser", () => {
     expect(result.tasks.map((t: any) => t.id)).toEqual([firstId, secondId]);
   });
 
+  it("sorts by created_at when it is the requested primary sort column", async () => {
+    const userId = await createUser();
+    await createTask(userId, { title: "second", created_at: new Date("2026-01-02") });
+    await createTask(userId, { title: "first", created_at: new Date("2026-01-01") });
+
+    const result = await listTasksForUser(userId, { sortBy: "created_at", sortDir: "desc" });
+
+    expect(result.tasks.map((t: any) => t.title)).toEqual(["second", "first"]);
+  });
+
   it("only returns tasks belonging to the requesting user", async () => {
     const userA = await createUser();
     const userB = await createUser();

@@ -40,6 +40,113 @@ describe("TaskList", () => {
     expect(screen.queryByText("B's task")).not.toBeInTheDocument();
   });
 
+  it("fetches with the default sort params on initial mount (AC1)", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(makeTasksResponse([{ id: "1", title: "A", created_at: "", due_date: null, priority: "Medium" }]));
+    globalThis.fetch = fetchMock as any;
+
+    render(
+      <MemoryRouter>
+        <TaskList />
+      </MemoryRouter>
+    );
+
+    await screen.findByText("A");
+    expect(fetchMock.mock.calls[0][0]).toMatch(/sortBy=due_date/);
+    expect(fetchMock.mock.calls[0][0]).toMatch(/sortDir=asc/);
+  });
+
+  it("displays only the most recently requested response when an older request resolves later (AC10)", async () => {
+    let resolveSecond: (value: any) => void;
+    const secondResponse = new Promise((resolve) => {
+      resolveSecond = resolve;
+    });
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(makeTasksResponse([{ id: "1", title: "Initial", created_at: "", due_date: null, priority: "Medium" }]))
+      .mockReturnValueOnce(secondResponse)
+      .mockResolvedValueOnce(makeTasksResponse([{ id: "3", title: "Newer", created_at: "", due_date: null, priority: "Medium" }]));
+    globalThis.fetch = fetchMock as any;
+
+    render(
+      <MemoryRouter>
+        <TaskList />
+      </MemoryRouter>
+    );
+
+    await screen.findByText("Initial");
+
+    fireEvent.click(screen.getByText(/priority/i));
+    fireEvent.click(screen.getByText(/priority/i));
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3));
+    await screen.findByText("Newer");
+
+    resolveSecond!(makeTasksResponse([{ id: "2", title: "Older", created_at: "", due_date: null, priority: "Medium" }]));
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(screen.queryByText("Older")).not.toBeInTheDocument();
+    expect(screen.getByText("Newer")).toBeInTheDocument();
+  });
+
+  it("shows all 10 tasks on a single page with no additional pages (AC8)", async () => {
+    const tasks = Array.from({ length: 10 }, (_, i) => ({
+      id: String(i + 1),
+      title: `Task ${i + 1}`,
+      created_at: "",
+      due_date: null,
+      priority: "Medium",
+    }));
+    globalThis.fetch = vi.fn().mockResolvedValue(makeTasksResponse(tasks, 1, 1)) as any;
+
+    render(
+      <MemoryRouter>
+        <TaskList />
+      </MemoryRouter>
+    );
+
+    for (const task of tasks) {
+      expect(await screen.findByText(task.title)).toBeInTheDocument();
+    }
+    expect(screen.getByText(/page 1 of 1/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /previous/i })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /next/i })).toBeDisabled();
+  });
+
+  it("splits 11 tasks across two pages with 10 on page 1 and 1 on page 2 (AC9)", async () => {
+    const page1Tasks = Array.from({ length: 10 }, (_, i) => ({
+      id: String(i + 1),
+      title: `Task ${i + 1}`,
+      created_at: "",
+      due_date: null,
+      priority: "Medium",
+    }));
+    const page2Tasks = [{ id: "11", title: "Task 11", created_at: "", due_date: null, priority: "Medium" }];
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(makeTasksResponse(page1Tasks, 1, 2))
+      .mockResolvedValueOnce(makeTasksResponse(page2Tasks, 2, 2));
+    globalThis.fetch = fetchMock as any;
+
+    render(
+      <MemoryRouter>
+        <TaskList />
+      </MemoryRouter>
+    );
+
+    for (const task of page1Tasks) {
+      expect(await screen.findByText(task.title)).toBeInTheDocument();
+    }
+    expect(screen.getByText(/page 1 of 2/i)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /next/i }));
+
+    expect(await screen.findByText("Task 11")).toBeInTheDocument();
+    expect(screen.getByText(/page 2 of 2/i)).toBeInTheDocument();
+    expect(screen.queryByText("Task 1")).not.toBeInTheDocument();
+  });
+
   it("refreshes the access token and retries after a 401 (AC23)", async () => {
     const fetchMock = vi
       .fn()

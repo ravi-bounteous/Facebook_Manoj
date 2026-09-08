@@ -36,24 +36,37 @@ export function TaskList() {
   const confirmButtonRef = useRef<HTMLButtonElement>(null);
   const rootRef = useRef<HTMLDivElement>(null);
   const lastFocusedElementRef = useRef<HTMLElement | null>(null);
+  const latestRequestIdRef = useRef(0);
 
-  const loadTasks = useCallback(async () => {
-    setLoading(true);
-    try {
-      const res = await apiFetch(`/tasks?sortBy=${sortBy}&sortDir=${sortDir}&page=${page}`);
-      if (!res.ok) {
-        throw new Error("Failed to load tasks");
+  const loadTasks = useCallback(
+    async (options: { preserveError?: boolean } = {}) => {
+      const requestId = ++latestRequestIdRef.current;
+      setLoading(true);
+      try {
+        const res = await apiFetch(`/tasks?sortBy=${sortBy}&sortDir=${sortDir}&page=${page}`);
+        if (requestId !== latestRequestIdRef.current) return;
+        if (!res.ok) {
+          throw new Error("Failed to load tasks");
+        }
+        const data = await res.json();
+        if (requestId !== latestRequestIdRef.current) return;
+        setTasks(data.tasks);
+        setTotalPages(data.totalPages);
+        if (!options.preserveError) {
+          setError(null);
+        }
+      } catch {
+        if (requestId !== latestRequestIdRef.current) return;
+        setError("Failed to load tasks");
+      } finally {
+        if (requestId === latestRequestIdRef.current) {
+          setLoading(false);
+          setInitialLoad(false);
+        }
       }
-      const data = await res.json();
-      setTasks(data.tasks);
-      setTotalPages(data.totalPages);
-    } catch {
-      setError("Failed to load tasks");
-    } finally {
-      setLoading(false);
-      setInitialLoad(false);
-    }
-  }, [sortBy, sortDir, page]);
+    },
+    [sortBy, sortDir, page]
+  );
 
   useEffect(() => {
     loadTasks();
@@ -65,7 +78,7 @@ export function TaskList() {
       if (!res.ok) {
         if (res.status === 404) {
           setError("This task no longer exists. Refreshing your task list.");
-          await loadTasks();
+          await loadTasks({ preserveError: true });
           return;
         }
         setError("Failed to update task");
@@ -73,6 +86,7 @@ export function TaskList() {
       }
       const data = await res.json();
       setTasks((prev) => prev.map((task) => (task.id === taskId ? data.task : task)));
+      setError(null);
     } catch {
       setError("Network error. Please try again.");
     }
@@ -98,13 +112,14 @@ export function TaskList() {
       if (!res.ok) {
         if (res.status === 404) {
           setError("This task no longer exists. Refreshing your task list.");
-          await loadTasks();
+          await loadTasks({ preserveError: true });
           return;
         }
         setError("Failed to delete task");
         return;
       }
       setTasks((prev) => prev.filter((task) => task.id !== taskId));
+      setError(null);
     } catch {
       setError("Network error. Please try again.");
     }

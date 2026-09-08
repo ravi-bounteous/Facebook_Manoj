@@ -43,10 +43,13 @@ describe("GET /api/tasks sorting", () => {
 
   it("ignores unrecognized sortBy values and falls back to the default", async () => {
     const user = await registerUser("badsort@example.com");
+    await knex("tasks").insert({ user_id: user.user.id, title: "b", due_date: new Date("2026-01-02") });
     await knex("tasks").insert({ user_id: user.user.id, title: "a", due_date: new Date("2026-01-01") });
 
     const res = await request(app).get("/api/tasks?sortBy=not-a-column").set("Authorization", `Bearer ${user.accessToken}`);
     expect(res.status).toBe(200);
-    expect(res.body.tasks).toHaveLength(1);
+    expect(res.body.tasks).toHaveLength(2);
+    expect(new Date(res.body.tasks[0].due_date).getTime()).toBeLessThanOrEqual(new Date(res.body.tasks[1].due_date).getTime());
+    expect(res.body.tasks.map((t: any) => t.title)).toEqual(["a", "b"]);
   });
 });
