@@ -77,10 +77,10 @@ function applyFilters(query: ReturnType<typeof knex>, userId: string, options: L
       throw new ValidationError("dueFrom must not be after dueTo");
     }
     if (options.dueFrom) {
-      query.whereRaw("due_date::date >= ?", [options.dueFrom]);
+      query.whereRaw("(due_date AT TIME ZONE 'UTC')::date >= ?", [options.dueFrom]);
     }
     if (options.dueTo) {
-      query.whereRaw("due_date::date <= ?", [options.dueTo]);
+      query.whereRaw("(due_date AT TIME ZONE 'UTC')::date <= ?", [options.dueTo]);
     }
   }
 }
@@ -103,7 +103,7 @@ export async function listTasksForUser(userId: string, options: ListTasksOptions
       }
     }
   }
-  if (options.status !== undefined && !VALID_STATUSES.includes(options.status)) {
+  if (options.status !== undefined && options.status !== "" && !VALID_STATUSES.includes(options.status)) {
     throw new ValidationError("Invalid status value");
   }
 

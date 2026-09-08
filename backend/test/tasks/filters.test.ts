@@ -24,6 +24,18 @@ describe("listTasksForUser filters (AC2, AC4, AC11, AC12, AC13)", () => {
     expect(incomplete.tasks.map((t: any) => t.title)).toEqual(["todo"]);
   });
 
+  it("treats an empty status as no filter, consistent with an empty priority list", async () => {
+    const user = await registerUser("filter1b@example.com");
+    await knex("tasks").insert({ user_id: user.user.id, title: "done", completed: true });
+    await knex("tasks").insert({ user_id: user.user.id, title: "todo", completed: false });
+
+    const emptyStatus = await listTasksForUser(user.user.id, { status: "" });
+    expect(emptyStatus.tasks.map((t: any) => t.title).sort()).toEqual(["done", "todo"]);
+
+    const emptyPriority = await listTasksForUser(user.user.id, { priority: [] });
+    expect(emptyPriority.tasks.map((t: any) => t.title).sort()).toEqual(["done", "todo"]);
+  });
+
   it("filters by a single priority", async () => {
     const user = await registerUser("filter2@example.com");
     await knex("tasks").insert({ user_id: user.user.id, title: "hi", priority: "High" });
