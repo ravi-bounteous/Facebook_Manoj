@@ -20,6 +20,13 @@ describe("GET /api/tasks due-date range validation (AC10)", () => {
       .set("Authorization", `Bearer ${user.accessToken}`);
 
     expect(res.status).toBe(400);
-    expect(res.body.tasks).toBeUndefined();
+    expect(res.body.error).toMatch(/dueFrom must not be after dueTo/i);
+
+    const followUp = await request(app)
+      .get("/api/tasks")
+      .set("Authorization", `Bearer ${user.accessToken}`);
+
+    expect(followUp.status).toBe(200);
+    expect(followUp.body.tasks.map((t: any) => t.title)).toEqual(["task"]);
   });
 });

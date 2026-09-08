@@ -7,6 +7,7 @@ export type SortDirection = "asc" | "desc";
 
 const PAGE_SIZE = 10;
 const VALID_PRIORITIES = ["High", "Medium", "Low"];
+const VALID_STATUSES = ["completed", "incomplete"];
 
 export interface ListTasksOptions {
   sortBy?: string;
@@ -76,10 +77,10 @@ function applyFilters(query: ReturnType<typeof knex>, userId: string, options: L
       throw new ValidationError("dueFrom must not be after dueTo");
     }
     if (options.dueFrom) {
-      query.where("due_date", ">=", options.dueFrom);
+      query.whereRaw("due_date::date >= ?", [options.dueFrom]);
     }
     if (options.dueTo) {
-      query.where("due_date", "<=", options.dueTo);
+      query.whereRaw("due_date::date <= ?", [options.dueTo]);
     }
   }
 }
@@ -101,6 +102,9 @@ export async function listTasksForUser(userId: string, options: ListTasksOptions
         throw new ValidationError("Invalid priority value");
       }
     }
+  }
+  if (options.status !== undefined && !VALID_STATUSES.includes(options.status)) {
+    throw new ValidationError("Invalid status value");
   }
 
   const countQuery = knex("tasks");

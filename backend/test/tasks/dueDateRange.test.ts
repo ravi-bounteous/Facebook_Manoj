@@ -33,6 +33,26 @@ describe("listTasksForUser due-date range (AC3, AC7, AC9)", () => {
     expect(result.tasks.map((t: any) => t.title).sort()).toEqual(["end-boundary", "start-boundary"]);
   });
 
+  it("filters using only dueFrom, including tasks on or after the start date (AC3)", async () => {
+    const user = await registerUser("range4@example.com");
+    await knex("tasks").insert({ user_id: user.user.id, title: "before", due_date: new Date("2026-01-04") });
+    await knex("tasks").insert({ user_id: user.user.id, title: "on-start", due_date: new Date("2026-01-05") });
+    await knex("tasks").insert({ user_id: user.user.id, title: "after", due_date: new Date("2026-01-11") });
+
+    const result = await listTasksForUser(user.user.id, { dueFrom: "2026-01-05" });
+    expect(result.tasks.map((t: any) => t.title).sort()).toEqual(["after", "on-start"]);
+  });
+
+  it("filters using only dueTo, including tasks on or before the end date (AC3)", async () => {
+    const user = await registerUser("range5@example.com");
+    await knex("tasks").insert({ user_id: user.user.id, title: "before", due_date: new Date("2026-01-04") });
+    await knex("tasks").insert({ user_id: user.user.id, title: "on-end", due_date: new Date("2026-01-10") });
+    await knex("tasks").insert({ user_id: user.user.id, title: "after", due_date: new Date("2026-01-11") });
+
+    const result = await listTasksForUser(user.user.id, { dueTo: "2026-01-10" });
+    expect(result.tasks.map((t: any) => t.title).sort()).toEqual(["before", "on-end"]);
+  });
+
   it("throws ValidationError when start date is after end date (AC9)", async () => {
     const user = await registerUser("range3@example.com");
     await expect(
