@@ -1,16 +1,28 @@
 import { knex } from "../db/knex";
-import { NotFoundError } from "./errors";
+import { NotFoundError, ValidationError } from "./errors";
 
 export const SORTABLE_COLUMNS = ["due_date", "priority", "created_at"] as const;
 export type SortColumn = (typeof SORTABLE_COLUMNS)[number];
 export type SortDirection = "asc" | "desc";
 
 const PAGE_SIZE = 10;
+const VALID_PRIORITIES = ["High", "Medium", "Low"];
 
 export interface ListTasksOptions {
   sortBy?: string;
   sortDir?: string;
   page?: number;
+  search?: string;
+  status?: string;
+  priority?: string[];
+  tag?: string[];
+  category?: string;
+  dueFrom?: string;
+  dueTo?: string;
+}
+
+function isValidDateString(value: string): boolean {
+  return !Number.isNaN(new Date(value).getTime());
 }
 
 export interface ListTasksResult {
@@ -29,18 +41,76 @@ export function isSortDirection(value: unknown): value is SortDirection {
   return value === "asc" || value === "desc";
 }
 
+function applyFilters(query: ReturnType<typeof knex>, userId: string, options: ListTasksOptions) {
+  query.where({ user_id: userId });
+
+  const search = options.search?.trim();
+  if (search) {
+    query.where((builder) => {
+      builder
+        .whereRaw("title ILIKE ?", [`%${search}%`])
+        .orWhereRaw("description ILIKE ?", [`%${search}%`]);
+    });
+  }
+
+  if (options.status === "completed") {
+    query.where({ completed: true });
+  } else if (options.status === "incomplete") {
+    query.where({ completed: false });
+  }
+
+  if (options.priority && options.priority.length > 0) {
+    query.whereIn("priority", options.priority);
+  }
+
+  if (options.tag && options.tag.length > 0) {
+    query.whereRaw("tags && ?::text[]", [options.tag]);
+  }
+
+  if (options.category) {
+    query.where({ category: options.category });
+  }
+
+  if (options.dueFrom || options.dueTo) {
+    if (options.dueFrom && options.dueTo && new Date(options.dueFrom).getTime() > new Date(options.dueTo).getTime()) {
+      throw new ValidationError("dueFrom must not be after dueTo");
+    }
+    if (options.dueFrom) {
+      query.where("due_date", ">=", options.dueFrom);
+    }
+    if (options.dueTo) {
+      query.where("due_date", "<=", options.dueTo);
+    }
+  }
+}
+
 export async function listTasksForUser(userId: string, options: ListTasksOptions = {}): Promise<ListTasksResult> {
   const sortBy: SortColumn = isSortColumn(options.sortBy) ? options.sortBy : "due_date";
   const sortDir: SortDirection = isSortDirection(options.sortDir) ? options.sortDir : "asc";
   const page = options.page && options.page > 0 ? Math.floor(options.page) : 1;
 
-  const [{ count }] = await knex("tasks").where({ user_id: userId }).count<{ count: string }[]>("id as count");
+  if (options.dueFrom && !isValidDateString(options.dueFrom)) {
+    throw new ValidationError("Invalid dueFrom date");
+  }
+  if (options.dueTo && !isValidDateString(options.dueTo)) {
+    throw new ValidationError("Invalid dueTo date");
+  }
+  if (options.priority) {
+    for (const p of options.priority) {
+      if (!VALID_PRIORITIES.includes(p)) {
+        throw new ValidationError("Invalid priority value");
+      }
+    }
+  }
+
+  const countQuery = knex("tasks");
+  applyFilters(countQuery, userId, options);
+  const [{ count }] = await countQuery.count<{ count: string }[]>("id as count");
   const totalCount = Number(count);
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
 
-  const query = knex("tasks")
-    .where({ user_id: userId })
-    .select("id", "title", "due_date", "priority", "created_at", "completed");
+  const query = knex("tasks").select("id", "title", "due_date", "priority", "created_at", "completed");
+  applyFilters(query, userId, options);
 
   if (sortBy === "priority") {
     query.orderByRaw(
@@ -84,6 +154,22 @@ export async function toggleTaskCompletion(userId: string, taskId: string) {
   );
 
   return updated;
+}
+
+export async function listFilterOptionsForUser(userId: string): Promise<{ categories: string[]; tags: string[] }> {
+  const categoryRows = await knex("tasks")
+    .where({ user_id: userId })
+    .whereNotNull("category")
+    .distinct("category");
+  const tagRows = await knex("tasks")
+    .where({ user_id: userId })
+    .whereNotNull("tags")
+    .select(knex.raw("DISTINCT unnest(tags) as tag"));
+
+  return {
+    categories: categoryRows.map((row: { category: string }) => row.category),
+    tags: tagRows.map((row: { tag: string }) => row.tag),
+  };
 }
 
 export async function deleteTask(userId: string, taskId: string) {

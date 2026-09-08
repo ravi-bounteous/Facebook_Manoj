@@ -421,4 +421,205 @@ describe("TaskList", () => {
     await waitFor(() => expect(screen.queryByText("A's task")).not.toBeInTheDocument());
     expect(fetchMock).toHaveBeenCalledTimes(3);
   });
+
+  describe("search and filtering", () => {
+    it("filters the list by search text without an explicit submit (AC1, AC16)", async () => {
+      const fetchMock = vi
+        .fn()
+        .mockResolvedValueOnce(
+          makeTasksResponse([{ id: "1", title: "Meeting", created_at: "", due_date: null, priority: "Medium" }])
+        )
+        .mockResolvedValueOnce(
+          makeTasksResponse([{ id: "1", title: "Meeting", created_at: "", due_date: null, priority: "Medium" }])
+        );
+      globalThis.fetch = fetchMock as any;
+
+      render(
+        <MemoryRouter>
+          <TaskList />
+        </MemoryRouter>
+      );
+
+      await screen.findByText("Meeting");
+
+      fireEvent.change(screen.getByLabelText(/search/i), { target: { value: "meet" } });
+
+      await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+      expect(fetchMock.mock.calls[1][0]).toMatch(/search=meet/);
+    });
+
+    it("shows the empty-state message when filters match no tasks (AC5)", async () => {
+      const fetchMock = vi
+        .fn()
+        .mockResolvedValueOnce(
+          makeTasksResponse([{ id: "1", title: "Meeting", created_at: "", due_date: null, priority: "Medium" }])
+        )
+        .mockResolvedValueOnce(makeTasksResponse([]));
+      globalThis.fetch = fetchMock as any;
+
+      render(
+        <MemoryRouter>
+          <TaskList />
+        </MemoryRouter>
+      );
+
+      await screen.findByText("Meeting");
+      fireEvent.change(screen.getByLabelText(/search/i), { target: { value: "nomatch" } });
+
+      expect(await screen.findByText(/no tasks/i)).toBeInTheDocument();
+    });
+
+    it("clears all filters and restores the unfiltered list (AC6)", async () => {
+      const fetchMock = vi
+        .fn()
+        .mockResolvedValueOnce(
+          makeTasksResponse([
+            { id: "1", title: "Meeting", created_at: "", due_date: null, priority: "Medium" },
+            { id: "2", title: "Groceries", created_at: "", due_date: null, priority: "Medium" },
+          ])
+        )
+        .mockResolvedValueOnce(makeTasksResponse([{ id: "1", title: "Meeting", created_at: "", due_date: null, priority: "Medium" }]))
+        .mockResolvedValueOnce(
+          makeTasksResponse([
+            { id: "1", title: "Meeting", created_at: "", due_date: null, priority: "Medium" },
+            { id: "2", title: "Groceries", created_at: "", due_date: null, priority: "Medium" },
+          ])
+        );
+      globalThis.fetch = fetchMock as any;
+
+      render(
+        <MemoryRouter>
+          <TaskList />
+        </MemoryRouter>
+      );
+
+      await screen.findByText("Meeting");
+      fireEvent.change(screen.getByLabelText(/search/i), { target: { value: "meet" } });
+      await waitFor(() => expect(screen.queryByText("Groceries")).not.toBeInTheDocument());
+
+      fireEvent.click(screen.getByRole("button", { name: /clear filters/i }));
+
+      await waitFor(() => expect(screen.getByText("Groceries")).toBeInTheDocument());
+      expect(screen.getByLabelText(/search/i)).toHaveValue("");
+    });
+
+    it("shows a validation error and does not apply the filter when start date is after end date (AC9, AC10)", async () => {
+      const fetchMock = vi.fn().mockResolvedValue(
+        makeTasksResponse([{ id: "1", title: "Meeting", created_at: "", due_date: null, priority: "Medium" }])
+      );
+      globalThis.fetch = fetchMock as any;
+
+      render(
+        <MemoryRouter>
+          <TaskList />
+        </MemoryRouter>
+      );
+
+      await screen.findByText("Meeting");
+      fireEvent.change(screen.getByLabelText(/due from/i), { target: { value: "2026-01-10" } });
+      await waitFor(() => expect(fetchMock.mock.calls.length).toBeGreaterThan(1));
+      const callCountBefore = fetchMock.mock.calls.length;
+
+      fireEvent.change(screen.getByLabelText(/due to/i), { target: { value: "2026-01-05" } });
+
+      expect(await screen.findByText(/start date.*after.*end date/i)).toBeInTheDocument();
+      expect(fetchMock.mock.calls.length).toBe(callCountBefore);
+    });
+
+    it("replaces the previous category selection when a different one is chosen (AC14)", async () => {
+      const fetchMock = vi
+        .fn()
+        .mockResolvedValueOnce(
+          makeTasksResponse([
+            { id: "1", title: "WorkTask", created_at: "", due_date: null, priority: "Medium", category: "Work" },
+            { id: "2", title: "PersonalTask", created_at: "", due_date: null, priority: "Medium", category: "Personal" },
+          ])
+        )
+        .mockResolvedValueOnce(
+          makeTasksResponse([{ id: "1", title: "WorkTask", created_at: "", due_date: null, priority: "Medium", category: "Work" }])
+        )
+        .mockResolvedValueOnce(
+          makeTasksResponse([{ id: "2", title: "PersonalTask", created_at: "", due_date: null, priority: "Medium", category: "Personal" }])
+        );
+      globalThis.fetch = fetchMock as any;
+
+      render(
+        <MemoryRouter>
+          <TaskList />
+        </MemoryRouter>
+      );
+
+      await screen.findByText("WorkTask");
+
+      fireEvent.change(screen.getByLabelText(/category/i), { target: { value: "Work" } });
+      await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+      expect(fetchMock.mock.calls[1][0]).toMatch(/category=Work/);
+
+      fireEvent.change(screen.getByLabelText(/category/i), { target: { value: "Personal" } });
+      await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3));
+      expect(fetchMock.mock.calls[2][0]).toMatch(/category=Personal/);
+      expect(fetchMock.mock.calls[2][0]).not.toMatch(/category=Work/);
+    });
+
+    it("resets pagination to page 1 while preserving sort order when a filter changes (AC17, AC18)", async () => {
+      const page2Tasks = [{ id: "2", title: "Page2Task", created_at: "", due_date: null, priority: "Medium" }];
+      const fetchMock = vi
+        .fn()
+        .mockResolvedValueOnce(
+          makeTasksResponse([{ id: "1", title: "Page1Task", created_at: "", due_date: null, priority: "Medium" }], 1, 2)
+        )
+        .mockResolvedValueOnce(makeTasksResponse(page2Tasks, 1, 2))
+        .mockResolvedValueOnce(makeTasksResponse(page2Tasks, 2, 2))
+        .mockResolvedValueOnce(makeTasksResponse([{ id: "1", title: "Page1Task", created_at: "", due_date: null, priority: "Medium" }], 1, 1));
+      globalThis.fetch = fetchMock as any;
+
+      render(
+        <MemoryRouter>
+          <TaskList />
+        </MemoryRouter>
+      );
+
+      await screen.findByText("Page1Task");
+      fireEvent.click(screen.getByRole("button", { name: /priority/i }));
+      await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+      fireEvent.click(screen.getByRole("button", { name: /next/i }));
+      await screen.findByText("Page2Task");
+
+      fireEvent.change(screen.getByLabelText(/search/i), { target: { value: "task" } });
+
+      await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(4));
+      const lastCallUrl = fetchMock.mock.calls[3][0];
+      expect(lastCallUrl).toMatch(/page=1/);
+      expect(lastCallUrl).toMatch(/sortBy=priority/);
+      expect(lastCallUrl).toMatch(/sortDir=asc/);
+    });
+
+    it("resets filters to defaults on remount (AC15)", async () => {
+      const fetchMock = vi.fn().mockResolvedValue(
+        makeTasksResponse([{ id: "1", title: "Meeting", created_at: "", due_date: null, priority: "Medium" }])
+      );
+      globalThis.fetch = fetchMock as any;
+
+      const { unmount } = render(
+        <MemoryRouter>
+          <TaskList />
+        </MemoryRouter>
+      );
+
+      await screen.findByText("Meeting");
+      fireEvent.change(screen.getByLabelText(/search/i), { target: { value: "meet" } });
+      await waitFor(() => expect(screen.getByLabelText(/search/i)).toHaveValue("meet"));
+
+      unmount();
+
+      render(
+        <MemoryRouter>
+          <TaskList />
+        </MemoryRouter>
+      );
+
+      await screen.findByText("Meeting");
+      expect(screen.getByLabelText(/search/i)).toHaveValue("");
+    });
+  });
 });
