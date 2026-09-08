@@ -13,6 +13,14 @@ function makeTasksResponse(tasks: any[], page = 1, totalPages = 1) {
   };
 }
 
+function makeFilterOptionsResponse(categories: string[] = [], tags: string[] = []) {
+  return {
+    ok: true,
+    status: 200,
+    json: async () => ({ categories, tags }),
+  };
+}
+
 function makeToken(exp: number) {
   const header = btoa(JSON.stringify({ alg: "HS256", typ: "JWT" }));
   const payload = btoa(JSON.stringify({ sub: "1", exp }));
@@ -65,6 +73,7 @@ describe("TaskList", () => {
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce(makeTasksResponse([{ id: "1", title: "Initial", created_at: "", due_date: null, priority: "Medium" }]))
+      .mockResolvedValueOnce(makeFilterOptionsResponse())
       .mockReturnValueOnce(secondResponse)
       .mockResolvedValueOnce(makeTasksResponse([{ id: "3", title: "Newer", created_at: "", due_date: null, priority: "Medium" }]));
     globalThis.fetch = fetchMock as any;
@@ -80,7 +89,7 @@ describe("TaskList", () => {
     fireEvent.click(screen.getByText(/priority/i));
     fireEvent.click(screen.getByText(/priority/i));
 
-    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(4));
     await screen.findByText("Newer");
 
     resolveSecond!(makeTasksResponse([{ id: "2", title: "Older", created_at: "", due_date: null, priority: "Medium" }]));
@@ -126,6 +135,7 @@ describe("TaskList", () => {
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce(makeTasksResponse(page1Tasks, 1, 2))
+      .mockResolvedValueOnce(makeFilterOptionsResponse())
       .mockResolvedValueOnce(makeTasksResponse(page2Tasks, 2, 2));
     globalThis.fetch = fetchMock as any;
 
@@ -152,7 +162,8 @@ describe("TaskList", () => {
       .fn()
       .mockResolvedValueOnce({ ok: false, status: 401, json: async () => ({}) })
       .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ accessToken: "new-access" }) })
-      .mockResolvedValueOnce(makeTasksResponse([{ id: "2", title: "Refreshed task", created_at: "", due_date: null, priority: "Medium" }]));
+      .mockResolvedValueOnce(makeTasksResponse([{ id: "2", title: "Refreshed task", created_at: "", due_date: null, priority: "Medium" }]))
+      .mockResolvedValueOnce(makeFilterOptionsResponse());
     globalThis.fetch = fetchMock as any;
 
     render(
@@ -162,7 +173,7 @@ describe("TaskList", () => {
     );
 
     expect(await screen.findByText("Refreshed task")).toBeInTheDocument();
-    expect(fetchMock).toHaveBeenCalledTimes(3);
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(4));
     expect(tokenStorage.getAccessToken()).toBe("new-access");
   });
 
@@ -194,6 +205,7 @@ describe("TaskList", () => {
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce(makeTasksResponse([{ id: "1", title: "A", created_at: "", due_date: null, priority: "Medium" }]))
+      .mockResolvedValueOnce(makeFilterOptionsResponse())
       .mockResolvedValueOnce(makeTasksResponse([{ id: "1", title: "A", created_at: "", due_date: null, priority: "Medium" }]))
       .mockResolvedValueOnce(makeTasksResponse([{ id: "1", title: "A", created_at: "", due_date: null, priority: "Medium" }]));
     globalThis.fetch = fetchMock as any;
@@ -207,13 +219,13 @@ describe("TaskList", () => {
     await screen.findByText("A");
 
     fireEvent.click(screen.getByText(/priority/i));
-    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
-    expect(fetchMock.mock.calls[1][0]).toMatch(/sortBy=priority/);
-    expect(fetchMock.mock.calls[1][0]).toMatch(/sortDir=asc/);
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3));
+    expect(fetchMock.mock.calls[2][0]).toMatch(/sortBy=priority/);
+    expect(fetchMock.mock.calls[2][0]).toMatch(/sortDir=asc/);
 
     fireEvent.click(screen.getByText(/priority/i));
-    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3));
-    expect(fetchMock.mock.calls[2][0]).toMatch(/sortDir=desc/);
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(4));
+    expect(fetchMock.mock.calls[3][0]).toMatch(/sortDir=desc/);
   });
 
   it("rapid repeated clicks on the same header resolve to the last requested direction (AC10)", async () => {
@@ -232,8 +244,8 @@ describe("TaskList", () => {
     fireEvent.click(screen.getByText(/priority/i));
     fireEvent.click(screen.getByText(/priority/i));
 
-    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(4));
-    const lastCallUrl = fetchMock.mock.calls[3][0];
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(5));
+    const lastCallUrl = fetchMock.mock.calls[4][0];
     expect(lastCallUrl).toMatch(/sortBy=priority/);
     expect(lastCallUrl).toMatch(/sortDir=asc/);
   });
@@ -242,6 +254,7 @@ describe("TaskList", () => {
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce(makeTasksResponse([{ id: "1", title: "Page1Task", created_at: "", due_date: null, priority: "Medium" }], 1, 2))
+      .mockResolvedValueOnce(makeFilterOptionsResponse())
       .mockResolvedValueOnce(makeTasksResponse([{ id: "2", title: "Page2Task", created_at: "", due_date: null, priority: "Medium" }], 2, 2));
     globalThis.fetch = fetchMock as any;
 
@@ -261,7 +274,7 @@ describe("TaskList", () => {
     await screen.findByText("Page2Task");
     expect(screen.getByText(/page 2 of 2/i)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /next/i })).toBeDisabled();
-    expect(fetchMock.mock.calls[1][0]).toMatch(/page=2/);
+    expect(fetchMock.mock.calls[2][0]).toMatch(/page=2/);
   });
 
   it("toggles an incomplete task to complete (AC1)", async () => {
@@ -271,6 +284,7 @@ describe("TaskList", () => {
       .mockResolvedValueOnce(
         makeTasksResponse([{ id: "1", title: "A's task", created_at: "", due_date: null, priority: "Medium", completed: false }])
       )
+      .mockResolvedValueOnce(makeFilterOptionsResponse())
       .mockResolvedValueOnce({
         ok: true,
         status: 200,
@@ -300,6 +314,7 @@ describe("TaskList", () => {
       .mockResolvedValueOnce(
         makeTasksResponse([{ id: "1", title: "A's task", created_at: "", due_date: null, priority: "Medium", completed: true }])
       )
+      .mockResolvedValueOnce(makeFilterOptionsResponse())
       .mockResolvedValueOnce({
         ok: true,
         status: 200,
@@ -327,7 +342,8 @@ describe("TaskList", () => {
       .fn()
       .mockResolvedValueOnce(
         makeTasksResponse([{ id: "1", title: "A's task", created_at: "", due_date: null, priority: "Medium", completed: false }])
-      );
+      )
+      .mockResolvedValueOnce(makeFilterOptionsResponse());
     globalThis.fetch = fetchMock as any;
 
     render(
@@ -344,7 +360,7 @@ describe("TaskList", () => {
 
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     expect(screen.getByText("A's task")).toBeInTheDocument();
-    expect(fetchMock).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
   });
 
   it("does not delete the task when Escape dismisses the dialog (AC4)", async () => {
@@ -353,7 +369,8 @@ describe("TaskList", () => {
       .fn()
       .mockResolvedValueOnce(
         makeTasksResponse([{ id: "1", title: "A's task", created_at: "", due_date: null, priority: "Medium", completed: false }])
-      );
+      )
+      .mockResolvedValueOnce(makeFilterOptionsResponse());
     globalThis.fetch = fetchMock as any;
 
     render(
@@ -370,7 +387,7 @@ describe("TaskList", () => {
 
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     expect(screen.getByText("A's task")).toBeInTheDocument();
-    expect(fetchMock).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
   });
 
   it("permanently deletes the task when the dialog is confirmed (AC3)", async () => {
@@ -380,6 +397,7 @@ describe("TaskList", () => {
       .mockResolvedValueOnce(
         makeTasksResponse([{ id: "1", title: "A's task", created_at: "", due_date: null, priority: "Medium", completed: false }])
       )
+      .mockResolvedValueOnce(makeFilterOptionsResponse())
       .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({}) });
     globalThis.fetch = fetchMock as any;
 
@@ -404,6 +422,7 @@ describe("TaskList", () => {
       .mockResolvedValueOnce(
         makeTasksResponse([{ id: "1", title: "A's task", created_at: "", due_date: null, priority: "Medium", completed: false }])
       )
+      .mockResolvedValueOnce(makeFilterOptionsResponse())
       .mockResolvedValueOnce({ ok: false, status: 404, json: async () => ({ error: "Task not found" }) })
       .mockResolvedValueOnce(makeTasksResponse([]));
     globalThis.fetch = fetchMock as any;
@@ -419,7 +438,7 @@ describe("TaskList", () => {
 
     await waitFor(() => expect(screen.getByRole("alert")).toBeInTheDocument());
     await waitFor(() => expect(screen.queryByText("A's task")).not.toBeInTheDocument());
-    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(fetchMock).toHaveBeenCalledTimes(4);
   });
 
   describe("search and filtering", () => {
@@ -429,6 +448,7 @@ describe("TaskList", () => {
         .mockResolvedValueOnce(
           makeTasksResponse([{ id: "1", title: "Meeting", created_at: "", due_date: null, priority: "Medium" }])
         )
+        .mockResolvedValueOnce(makeFilterOptionsResponse())
         .mockResolvedValueOnce(
           makeTasksResponse([{ id: "1", title: "Meeting", created_at: "", due_date: null, priority: "Medium" }])
         );
@@ -444,8 +464,8 @@ describe("TaskList", () => {
 
       fireEvent.change(screen.getByLabelText(/search/i), { target: { value: "meet" } });
 
-      await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
-      expect(fetchMock.mock.calls[1][0]).toMatch(/search=meet/);
+      await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3));
+      expect(fetchMock.mock.calls[2][0]).toMatch(/search=meet/);
     });
 
     it("shows the empty-state message when filters match no tasks (AC5)", async () => {
@@ -454,6 +474,7 @@ describe("TaskList", () => {
         .mockResolvedValueOnce(
           makeTasksResponse([{ id: "1", title: "Meeting", created_at: "", due_date: null, priority: "Medium" }])
         )
+        .mockResolvedValueOnce(makeFilterOptionsResponse())
         .mockResolvedValueOnce(makeTasksResponse([]));
       globalThis.fetch = fetchMock as any;
 
@@ -478,6 +499,7 @@ describe("TaskList", () => {
             { id: "2", title: "Groceries", created_at: "", due_date: null, priority: "Medium" },
           ])
         )
+        .mockResolvedValueOnce(makeFilterOptionsResponse())
         .mockResolvedValueOnce(makeTasksResponse([{ id: "1", title: "Meeting", created_at: "", due_date: null, priority: "Medium" }]))
         .mockResolvedValueOnce(
           makeTasksResponse([
@@ -526,6 +548,31 @@ describe("TaskList", () => {
       expect(fetchMock.mock.calls.length).toBe(callCountBefore);
     });
 
+    it("populates category and tag dropdown options from the filter-options endpoint, including values absent from the visible tasks (AC11)", async () => {
+      const fetchMock = vi
+        .fn()
+        .mockResolvedValueOnce(
+          makeTasksResponse([{ id: "1", title: "WorkTask", created_at: "", due_date: null, priority: "Medium", category: "Work" }])
+        )
+        .mockResolvedValueOnce(makeFilterOptionsResponse(["Work", "Archived"], ["urgent", "billing"]));
+      globalThis.fetch = fetchMock as any;
+
+      render(
+        <MemoryRouter>
+          <TaskList />
+        </MemoryRouter>
+      );
+
+      await screen.findByText("WorkTask");
+
+      await waitFor(() => {
+        expect(screen.getByRole("option", { name: "Archived" })).toBeInTheDocument();
+      });
+      expect(screen.getByRole("option", { name: "Work" })).toBeInTheDocument();
+      expect(screen.getByRole("option", { name: "urgent" })).toBeInTheDocument();
+      expect(screen.getByRole("option", { name: "billing" })).toBeInTheDocument();
+    });
+
     it("replaces the previous category selection when a different one is chosen (AC14)", async () => {
       const fetchMock = vi
         .fn()
@@ -535,6 +582,7 @@ describe("TaskList", () => {
             { id: "2", title: "PersonalTask", created_at: "", due_date: null, priority: "Medium", category: "Personal" },
           ])
         )
+        .mockResolvedValueOnce(makeFilterOptionsResponse(["Work", "Personal"]))
         .mockResolvedValueOnce(
           makeTasksResponse([{ id: "1", title: "WorkTask", created_at: "", due_date: null, priority: "Medium", category: "Work" }])
         )
@@ -552,13 +600,13 @@ describe("TaskList", () => {
       await screen.findByText("WorkTask");
 
       fireEvent.change(screen.getByLabelText(/category/i), { target: { value: "Work" } });
-      await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
-      expect(fetchMock.mock.calls[1][0]).toMatch(/category=Work/);
+      await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3));
+      expect(fetchMock.mock.calls[2][0]).toMatch(/category=Work/);
 
       fireEvent.change(screen.getByLabelText(/category/i), { target: { value: "Personal" } });
-      await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3));
-      expect(fetchMock.mock.calls[2][0]).toMatch(/category=Personal/);
-      expect(fetchMock.mock.calls[2][0]).not.toMatch(/category=Work/);
+      await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(4));
+      expect(fetchMock.mock.calls[3][0]).toMatch(/category=Personal/);
+      expect(fetchMock.mock.calls[3][0]).not.toMatch(/category=Work/);
     });
 
     it("resets pagination to page 1 while preserving sort order when a filter changes (AC17, AC18)", async () => {
@@ -568,6 +616,7 @@ describe("TaskList", () => {
         .mockResolvedValueOnce(
           makeTasksResponse([{ id: "1", title: "Page1Task", created_at: "", due_date: null, priority: "Medium" }], 1, 2)
         )
+        .mockResolvedValueOnce(makeFilterOptionsResponse())
         .mockResolvedValueOnce(makeTasksResponse(page2Tasks, 1, 2))
         .mockResolvedValueOnce(makeTasksResponse(page2Tasks, 2, 2))
         .mockResolvedValueOnce(makeTasksResponse([{ id: "1", title: "Page1Task", created_at: "", due_date: null, priority: "Medium" }], 1, 1));
@@ -581,14 +630,14 @@ describe("TaskList", () => {
 
       await screen.findByText("Page1Task");
       fireEvent.click(screen.getByRole("button", { name: /priority/i }));
-      await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+      await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3));
       fireEvent.click(screen.getByRole("button", { name: /next/i }));
       await screen.findByText("Page2Task");
 
       fireEvent.change(screen.getByLabelText(/search/i), { target: { value: "task" } });
 
-      await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(4));
-      const lastCallUrl = fetchMock.mock.calls[3][0];
+      await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(5));
+      const lastCallUrl = fetchMock.mock.calls[4][0];
       expect(lastCallUrl).toMatch(/page=1/);
       expect(lastCallUrl).toMatch(/sortBy=priority/);
       expect(lastCallUrl).toMatch(/sortDir=asc/);

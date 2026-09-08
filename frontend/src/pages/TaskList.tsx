@@ -81,6 +81,7 @@ export function TaskList() {
   const rootRef = useRef<HTMLDivElement>(null);
   const lastFocusedElementRef = useRef<HTMLElement | null>(null);
   const latestRequestIdRef = useRef(0);
+  const filterOptionsFetchedRef = useRef(false);
 
   const dateRangeInvalid = !!dueFrom && !!dueTo && dueFrom > dueTo;
 
@@ -135,6 +136,19 @@ export function TaskList() {
     loadTasks();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loadTasks]);
+
+  useEffect(() => {
+    if (initialLoad || filterOptionsFetchedRef.current) return;
+    filterOptionsFetchedRef.current = true;
+    apiFetch("/tasks/filter-options")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (!data) return;
+        setKnownCategories((prev) => Array.from(new Set([...prev, ...(data.categories ?? [])])));
+        setKnownTags((prev) => Array.from(new Set([...prev, ...(data.tags ?? [])])));
+      })
+      .catch(() => {});
+  }, [initialLoad]);
 
   function handleFilterChange() {
     setPage(1);
