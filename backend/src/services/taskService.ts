@@ -47,10 +47,11 @@ function applyFilters(query: ReturnType<typeof knex>, userId: string, options: L
 
   const search = options.search?.trim();
   if (search) {
+    const escapedSearch = search.replace(/\\/g, "\\\\").replace(/%/g, "\\%").replace(/_/g, "\\_");
     query.where((builder) => {
       builder
-        .whereRaw("title ILIKE ?", [`%${search}%`])
-        .orWhereRaw("description ILIKE ?", [`%${search}%`]);
+        .whereRaw("title ILIKE ? ESCAPE '\\'", [`%${escapedSearch}%`])
+        .orWhereRaw("description ILIKE ? ESCAPE '\\'", [`%${escapedSearch}%`]);
     });
   }
 

@@ -5,13 +5,10 @@ import { LogoutButton } from "../components/LogoutButton";
 interface Task {
   id: string;
   title: string;
-  description?: string | null;
   created_at: string;
   completed: boolean;
   due_date: string | null;
   priority: string;
-  category?: string | null;
-  tags?: string[] | null;
 }
 
 type SortColumn = "due_date" | "priority" | "created_at";

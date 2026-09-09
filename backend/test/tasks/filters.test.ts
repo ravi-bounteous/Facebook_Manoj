@@ -145,4 +145,69 @@ describe("listTasksForUser filters (AC2, AC4, AC11, AC12, AC13)", () => {
     expect(res.status).toBe(200);
     expect(res.body.tasks.map((t: any) => t.title).sort()).toEqual(["hi", "lo"]);
   });
+
+  it("filters by search query param over HTTP (AC1)", async () => {
+    const user = await registerUser("filter9@example.com");
+    await knex("tasks").insert({ user_id: user.user.id, title: "Team Meeting" });
+    await knex("tasks").insert({ user_id: user.user.id, title: "Unrelated" });
+
+    const res = await request(app)
+      .get("/api/tasks?search=meeting")
+      .set("Authorization", `Bearer ${user.accessToken}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.tasks.map((t: any) => t.title)).toEqual(["Team Meeting"]);
+  });
+
+  it("escapes ILIKE wildcard characters in the search query param (AC1)", async () => {
+    const user = await registerUser("filter9b@example.com");
+    await knex("tasks").insert({ user_id: user.user.id, title: "50% off sale" });
+    await knex("tasks").insert({ user_id: user.user.id, title: "50 percent discount" });
+
+    const res = await request(app)
+      .get(`/api/tasks?search=${encodeURIComponent("50%")}`)
+      .set("Authorization", `Bearer ${user.accessToken}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.tasks.map((t: any) => t.title)).toEqual(["50% off sale"]);
+  });
+
+  it("filters by status query param over HTTP (AC2)", async () => {
+    const user = await registerUser("filter10@example.com");
+    await knex("tasks").insert({ user_id: user.user.id, title: "done", completed: true });
+    await knex("tasks").insert({ user_id: user.user.id, title: "todo", completed: false });
+
+    const res = await request(app)
+      .get("/api/tasks?status=completed")
+      .set("Authorization", `Bearer ${user.accessToken}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.tasks.map((t: any) => t.title)).toEqual(["done"]);
+  });
+
+  it("filters by tag query param over HTTP (AC2, AC11)", async () => {
+    const user = await registerUser("filter11@example.com");
+    await knex("tasks").insert({ user_id: user.user.id, title: "urgent-task", tags: knex.raw("ARRAY['urgent']") });
+    await knex("tasks").insert({ user_id: user.user.id, title: "other-task", tags: knex.raw("ARRAY['other']") });
+
+    const res = await request(app)
+      .get("/api/tasks?tag=urgent")
+      .set("Authorization", `Bearer ${user.accessToken}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.tasks.map((t: any) => t.title)).toEqual(["urgent-task"]);
+  });
+
+  it("filters by category query param over HTTP (AC2, AC11)", async () => {
+    const user = await registerUser("filter12@example.com");
+    await knex("tasks").insert({ user_id: user.user.id, title: "work-task", category: "Work" });
+    await knex("tasks").insert({ user_id: user.user.id, title: "personal-task", category: "Personal" });
+
+    const res = await request(app)
+      .get("/api/tasks?category=Work")
+      .set("Authorization", `Bearer ${user.accessToken}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.tasks.map((t: any) => t.title)).toEqual(["work-task"]);
+  });
 });
