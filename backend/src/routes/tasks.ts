@@ -4,6 +4,7 @@ import { requireAuth, AuthenticatedRequest } from "../middleware/requireAuth";
 import { listTasksForUser, listFilterOptionsForUser, toggleTaskCompletion, deleteTask } from "../services/taskService";
 import { getDashboardForUser } from "../services/dashboardService";
 import { NotFoundError, ValidationError } from "../services/errors";
+import { httpRequestCounter, httpRequestErrorCounter, httpRequestDuration } from "../utils/metrics";
 
 export const tasksRouter = Router();
 
@@ -112,6 +113,8 @@ tasksRouter.get(
   "/dashboard",
   requireAuth,
   async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+    const route = "/tasks/dashboard";
+    const endTimer = httpRequestDuration.startTimer({ route, method: req.method });
     try {
       const result = await getDashboardForUser(req.user!.id);
       console.log(
@@ -123,6 +126,8 @@ tasksRouter.get(
           upcomingCount: result.upcomingTasks.length,
         })
       );
+      httpRequestCounter.inc({ route, method: req.method, status: "200" });
+      endTimer();
       res.status(200).json(result);
     } catch (err) {
       console.error(
@@ -132,6 +137,9 @@ tasksRouter.get(
           error: err instanceof Error ? err.message : String(err),
         })
       );
+      httpRequestCounter.inc({ route, method: req.method, status: "500" });
+      httpRequestErrorCounter.inc({ route, method: req.method });
+      endTimer();
       next(err);
     }
   }

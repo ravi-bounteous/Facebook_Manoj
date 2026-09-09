@@ -147,6 +147,8 @@ describe("getDashboardForUser upcoming preview (AC5, AC7, AC8, AC14, AC15, AC16)
 
     const result = await getDashboardForUser(user.user.id);
     const titles = result.upcomingTasks.map((t) => t.title);
+    expect(titles).toContain("created-earlier");
+    expect(titles).toContain("created-later");
     expect(titles.indexOf("created-earlier")).toBeLessThan(titles.indexOf("created-later"));
   });
 });

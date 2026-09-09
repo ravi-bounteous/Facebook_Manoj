@@ -17,7 +17,7 @@ function fixedClock(date: Date): Clock {
 }
 
 describe("getDashboardForUser timezone-aware date calculation (AC17)", () => {
-  it("flags a task as overdue in the user's timezone when it would not be overdue in UTC", async () => {
+  it("does not flag a task as overdue in the user's timezone when it would be overdue in UTC", async () => {
     const user = await registerUser("tz-overdue@example.com");
     await knex("users").where({ id: user.user.id }).update({ timezone: "Pacific/Kiritimati" });
 
