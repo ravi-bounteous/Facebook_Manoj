@@ -161,19 +161,50 @@ export async function toggleTaskCompletion(userId: string, taskId: string) {
 }
 
 export async function listFilterOptionsForUser(userId: string): Promise<{ categories: string[]; tags: string[] }> {
-  const categoryRows = await knex("tasks")
-    .where({ user_id: userId })
-    .whereNotNull("category")
-    .distinct("category");
-  const tagRows = await knex("tasks")
-    .where({ user_id: userId })
-    .whereNotNull("tags")
-    .select(knex.raw("DISTINCT unnest(tags) as tag"));
+  let categoryRows: { category: string }[];
+  try {
+    categoryRows = await knex("tasks").where({ user_id: userId }).whereNotNull("category").distinct("category");
+  } catch (err) {
+    console.error(
+      JSON.stringify({
+        event: "tasks.filterOptions.categoryQuery.error",
+        userId,
+        error: err instanceof Error ? err.message : String(err),
+      })
+    );
+    throw err;
+  }
 
-  return {
-    categories: categoryRows.map((row: { category: string }) => row.category),
-    tags: tagRows.map((row: { tag: string }) => row.tag),
-  };
+  let tagRows: { tag: string }[];
+  try {
+    tagRows = await knex("tasks")
+      .where({ user_id: userId })
+      .whereNotNull("tags")
+      .select(knex.raw("DISTINCT unnest(tags) as tag"));
+  } catch (err) {
+    console.error(
+      JSON.stringify({
+        event: "tasks.filterOptions.tagQuery.error",
+        userId,
+        error: err instanceof Error ? err.message : String(err),
+      })
+    );
+    throw err;
+  }
+
+  const categories = categoryRows.map((row) => row.category);
+  const tags = tagRows.map((row) => row.tag);
+
+  console.log(
+    JSON.stringify({
+      event: "tasks.filterOptions.queried",
+      userId,
+      categoryCount: categories.length,
+      tagCount: tags.length,
+    })
+  );
+
+  return { categories, tags };
 }
 
 export async function deleteTask(userId: string, taskId: string) {

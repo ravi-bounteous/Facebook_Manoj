@@ -19,11 +19,7 @@ tasksRouter.get(
     try {
       const { sortBy, sortDir, page, search, status, priority, tag, category, dueFrom, dueTo } = req.query;
       const parsedPage = typeof page === "string" ? parseInt(page, 10) : undefined;
-
-      const result = await listTasksForUser(req.user!.id, {
-        sortBy: typeof sortBy === "string" ? sortBy : undefined,
-        sortDir: typeof sortDir === "string" ? sortDir : undefined,
-        page: parsedPage && Number.isInteger(parsedPage) && parsedPage > 0 ? parsedPage : undefined,
+      const filters = {
         search: typeof search === "string" ? search : undefined,
         status: typeof status === "string" ? status : undefined,
         priority: toStringArray(priority),
@@ -31,7 +27,25 @@ tasksRouter.get(
         category: typeof category === "string" ? category : undefined,
         dueFrom: typeof dueFrom === "string" ? dueFrom : undefined,
         dueTo: typeof dueTo === "string" ? dueTo : undefined,
+      };
+
+      const startTime = Date.now();
+      const result = await listTasksForUser(req.user!.id, {
+        sortBy: typeof sortBy === "string" ? sortBy : undefined,
+        sortDir: typeof sortDir === "string" ? sortDir : undefined,
+        page: parsedPage && Number.isInteger(parsedPage) && parsedPage > 0 ? parsedPage : undefined,
+        ...filters,
       });
+
+      console.log(
+        JSON.stringify({
+          event: "tasks.list.success",
+          userId: req.user!.id,
+          filters,
+          resultCount: result.totalCount,
+          durationMs: Date.now() - startTime,
+        })
+      );
 
       res.status(200).json(result);
     } catch (err) {
@@ -64,6 +78,14 @@ tasksRouter.get(
   async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     try {
       const result = await listFilterOptionsForUser(req.user!.id);
+      console.log(
+        JSON.stringify({
+          event: "tasks.filterOptions.retrieved",
+          userId: req.user!.id,
+          categoryCount: result.categories.length,
+          tagCount: result.tags.length,
+        })
+      );
       res.status(200).json(result);
     } catch (err) {
       console.error(

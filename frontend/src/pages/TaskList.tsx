@@ -103,12 +103,6 @@ export function TaskList() {
         if (requestId !== latestRequestIdRef.current) return;
         setTasks(data.tasks);
         setTotalPages(data.totalPages);
-        setKnownCategories((prev) =>
-          Array.from(new Set([...prev, ...data.tasks.map((t: Task) => t.category).filter((c: unknown): c is string => !!c)]))
-        );
-        setKnownTags((prev) =>
-          Array.from(new Set([...prev, ...data.tasks.flatMap((t: Task) => t.tags ?? [])]))
-        );
         if (!options.preserveError) {
           setError(null);
         }

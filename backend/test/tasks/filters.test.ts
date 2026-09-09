@@ -127,4 +127,22 @@ describe("listTasksForUser filters (AC2, AC4, AC11, AC12, AC13)", () => {
     expect(result.tasks).toHaveLength(1);
     expect(result.tasks[0].title).toBe("Team Meeting");
   });
+
+  it("filters by multiple priorities passed as repeated query params over HTTP (AC12)", async () => {
+    const registerRes = await request(app)
+      .post("/api/auth/register")
+      .send({ email: "filter8@example.com", password: VALID_CREDENTIAL });
+    const user = registerRes.body;
+
+    await knex("tasks").insert({ user_id: user.user.id, title: "hi", priority: "High" });
+    await knex("tasks").insert({ user_id: user.user.id, title: "lo", priority: "Low" });
+    await knex("tasks").insert({ user_id: user.user.id, title: "med", priority: "Medium" });
+
+    const res = await request(app)
+      .get("/api/tasks?priority=High&priority=Low")
+      .set("Authorization", `Bearer ${user.accessToken}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.tasks.map((t: any) => t.title).sort()).toEqual(["hi", "lo"]);
+  });
 });

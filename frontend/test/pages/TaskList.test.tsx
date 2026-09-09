@@ -560,7 +560,7 @@ describe("TaskList", () => {
       const fetchMock = vi
         .fn()
         .mockResolvedValueOnce(
-          makeTasksResponse([{ id: "1", title: "WorkTask", created_at: "", due_date: null, priority: "Medium", category: "Work" }])
+          makeTasksResponse([{ id: "1", title: "WorkTask", created_at: "", due_date: null, priority: "Medium" }])
         )
         .mockResolvedValueOnce(makeFilterOptionsResponse(["Work", "Archived"], ["urgent", "billing"]));
       globalThis.fetch = fetchMock as any;
@@ -626,16 +626,16 @@ describe("TaskList", () => {
         .fn()
         .mockResolvedValueOnce(
           makeTasksResponse([
-            { id: "1", title: "WorkTask", created_at: "", due_date: null, priority: "Medium", category: "Work" },
-            { id: "2", title: "PersonalTask", created_at: "", due_date: null, priority: "Medium", category: "Personal" },
+            { id: "1", title: "WorkTask", created_at: "", due_date: null, priority: "Medium" },
+            { id: "2", title: "PersonalTask", created_at: "", due_date: null, priority: "Medium" },
           ])
         )
         .mockResolvedValueOnce(makeFilterOptionsResponse(["Work", "Personal"]))
         .mockResolvedValueOnce(
-          makeTasksResponse([{ id: "1", title: "WorkTask", created_at: "", due_date: null, priority: "Medium", category: "Work" }])
+          makeTasksResponse([{ id: "1", title: "WorkTask", created_at: "", due_date: null, priority: "Medium" }])
         )
         .mockResolvedValueOnce(
-          makeTasksResponse([{ id: "2", title: "PersonalTask", created_at: "", due_date: null, priority: "Medium", category: "Personal" }])
+          makeTasksResponse([{ id: "2", title: "PersonalTask", created_at: "", due_date: null, priority: "Medium" }])
         );
       globalThis.fetch = fetchMock as any;
 
