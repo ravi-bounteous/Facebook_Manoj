@@ -78,6 +78,7 @@ describe("listTasksForUser filters (AC2, AC4, AC11, AC12, AC13)", () => {
     const user = await registerUser("filter6@example.com");
     await knex("tasks").insert({ user_id: user.user.id, title: "work-task", category: "Work" });
     await knex("tasks").insert({ user_id: user.user.id, title: "personal-task", category: "Personal" });
+    await knex("tasks").insert({ user_id: user.user.id, title: "workflow-task", category: "Workflow" });
 
     const result = await listTasksForUser(user.user.id, { category: "Work" });
     expect(result.tasks.map((t: any) => t.title)).toEqual(["work-task"]);

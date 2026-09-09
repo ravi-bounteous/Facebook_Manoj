@@ -41,7 +41,14 @@ tasksRouter.get(
         JSON.stringify({
           event: "tasks.list.success",
           userId: req.user!.id,
-          filters,
+          filters: {
+            hasSearch: !!filters.search,
+            status: filters.status,
+            priorityCount: filters.priority?.length ?? 0,
+            tagCount: filters.tag?.length ?? 0,
+            category: filters.category,
+            hasDueDateRange: !!(filters.dueFrom || filters.dueTo),
+          },
           resultCount: result.totalCount,
           durationMs: Date.now() - startTime,
         })
