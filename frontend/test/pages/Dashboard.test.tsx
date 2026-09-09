@@ -48,10 +48,11 @@ describe("Dashboard", () => {
       </MemoryRouter>
     );
 
-    expect(await screen.findByText("5")).toBeInTheDocument();
-    expect(screen.getByText("2")).toBeInTheDocument();
-    expect(screen.getByText("3")).toBeInTheDocument();
-    expect(screen.getByText("1")).toBeInTheDocument();
+    await screen.findByText("5");
+    expect(screen.getByText("Total").nextElementSibling).toHaveTextContent("5");
+    expect(screen.getByText("Completed").nextElementSibling).toHaveTextContent("2");
+    expect(screen.getByText("Pending").nextElementSibling).toHaveTextContent("3");
+    expect(screen.getByText("Overdue").nextElementSibling).toHaveTextContent("1");
   });
 
   it("renders the upcoming preview list (AC2)", async () => {

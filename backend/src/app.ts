@@ -1,6 +1,5 @@
 import express, { Express, Request, Response, NextFunction } from "express";
 import cors from "cors";
-import { register } from "prom-client";
 import { authRouter } from "./routes/auth";
 import { tasksRouter } from "./routes/tasks";
 
@@ -8,10 +7,6 @@ export function createApp(): Express {
   const app = express();
   app.use(cors());
   app.use(express.json());
-  app.get("/metrics", async (_req: Request, res: Response) => {
-    res.set("Content-Type", register.contentType);
-    res.send(await register.metrics());
-  });
   app.use("/api/auth", authRouter);
   app.use("/api/tasks", tasksRouter);
   app.use((err: unknown, req: Request, res: Response, next: NextFunction) => {
