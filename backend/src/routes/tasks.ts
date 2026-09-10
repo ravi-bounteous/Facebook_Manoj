@@ -1,7 +1,13 @@
 import { Router, Response, NextFunction } from "express";
 import { validate as isUUID } from "uuid";
 import { requireAuth, AuthenticatedRequest } from "../middleware/requireAuth";
-import { listTasksForUser, listFilterOptionsForUser, toggleTaskCompletion, deleteTask } from "../services/taskService";
+import {
+  listTasksForUser,
+  listFilterOptionsForUser,
+  toggleTaskCompletion,
+  deleteTask,
+  getDashboardForUser,
+} from "../services/taskService";
 import { NotFoundError, ValidationError } from "../services/errors";
 
 export const tasksRouter = Router();
@@ -70,6 +76,34 @@ tasksRouter.get(
       console.error(
         JSON.stringify({
           event: "tasks.list.error",
+          userId: req.user!.id,
+          error: err instanceof Error ? err.message : String(err),
+        })
+      );
+      next(err);
+    }
+  }
+);
+
+tasksRouter.get(
+  "/dashboard",
+  requireAuth,
+  async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+    try {
+      const result = await getDashboardForUser(req.user!.id);
+      console.log(
+        JSON.stringify({
+          event: "tasks.dashboard.retrieved",
+          userId: req.user!.id,
+          counts: result.counts,
+          upcomingCount: result.upcoming.length,
+        })
+      );
+      res.status(200).json(result);
+    } catch (err) {
+      console.error(
+        JSON.stringify({
+          event: "tasks.dashboard.error",
           userId: req.user!.id,
           error: err instanceof Error ? err.message : String(err),
         })
