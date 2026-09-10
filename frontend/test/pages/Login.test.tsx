@@ -78,6 +78,16 @@ describe("Login page", () => {
     expect(loginSpy).not.toHaveBeenCalled();
   });
 
+  it("shows a validation message and does not call the login API when the email is not a valid format", async () => {
+    const loginSpy = vi.spyOn(authApi, "login");
+
+    renderLogin();
+    fillAndSubmit("not-an-email", "somepassword");
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(/valid email/i);
+    expect(loginSpy).not.toHaveBeenCalled();
+  });
+
   it("submits successfully with a simple, non-complex password (AC8)", async () => {
     const loginSpy = vi.spyOn(authApi, "login").mockResolvedValue({
       accessToken: "a",

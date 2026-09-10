@@ -2,6 +2,7 @@ import { FormEvent, useState } from "react";
 import { Link, Navigate, useNavigate } from "react-router-dom";
 import * as authApi from "../api/authApi";
 import { tokenStorage, isTokenExpired } from "../api/tokenStorage";
+import { isValidEmail } from "../validators";
 
 export function Login() {
   const [email, setEmail] = useState("");
@@ -19,6 +20,10 @@ export function Login() {
 
     if (!email.trim()) {
       setError("Email is required");
+      return;
+    }
+    if (!isValidEmail(email)) {
+      setError("Enter a valid email address");
       return;
     }
     if (!password) {
