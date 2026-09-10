@@ -22,4 +22,5 @@ export const config = {
   lockoutThreshold: Number(process.env.LOCKOUT_THRESHOLD || 5),
   lockoutDurationMs: Number(process.env.LOCKOUT_DURATION_MS || 15 * 60 * 1000),
   port: Number(process.env.ARC_DEV_PORT || 8001),
+  frontendUrl: process.env.FRONTEND_URL || "http://localhost:3004",
 };

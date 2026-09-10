@@ -3,13 +3,15 @@ import cors from "cors";
 import { authRouter } from "./routes/auth";
 import { tasksRouter } from "./routes/tasks";
 import { metricsRegistry, requestMetrics } from "./metrics";
+import { requireAuth, AuthenticatedRequest } from "./middleware/requireAuth";
+import { config } from "./config";
 
 export function createApp(): Express {
   const app = express();
-  app.use(cors());
+  app.use(cors({ origin: config.frontendUrl }));
   app.use(express.json());
   app.use(requestMetrics);
-  app.get("/metrics", async (_req: Request, res: Response) => {
+  app.get("/metrics", requireAuth, async (_req: AuthenticatedRequest, res: Response) => {
     res.set("Content-Type", metricsRegistry.contentType);
     res.end(await metricsRegistry.metrics());
   });
