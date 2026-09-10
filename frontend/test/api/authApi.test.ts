@@ -72,7 +72,7 @@ describe("authApi", () => {
       .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ tasks: [] }) });
     globalThis.fetch = fetchMock as any;
 
-    const res = await apiFetch("/api/tasks");
+    const res = await apiFetch("/tasks");
 
     expect(res.status).toBe(200);
     expect(tokenStorage.getAccessToken()).toBe("new-access");
@@ -88,7 +88,7 @@ describe("authApi", () => {
       .mockResolvedValueOnce({ ok: false, status: 401, json: async () => ({}) });
     globalThis.fetch = fetchMock as any;
 
-    const res = await apiFetch("/api/tasks");
+    const res = await apiFetch("/tasks");
 
     expect(res.status).toBe(401);
     expect(tokenStorage.getAccessToken()).toBeNull();
