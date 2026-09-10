@@ -5,7 +5,7 @@ import { VALID_CREDENTIAL } from "../fixtures/credentials";
 
 describe("authApi", () => {
   beforeEach(() => {
-    localStorage.clear();
+    sessionStorage.clear();
     vi.restoreAllMocks();
   });
 

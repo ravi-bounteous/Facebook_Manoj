@@ -1,8 +1,9 @@
-import { describe, it, expect, beforeEach } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { render, screen, act } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { RequireAuth } from "../../src/components/RequireAuth";
 import { tokenStorage } from "../../src/api/tokenStorage";
+import { config } from "../../src/config";
 
 function makeToken(exp: number) {
   const header = btoa(JSON.stringify({ alg: "HS256", typ: "JWT" }));
@@ -56,5 +57,27 @@ describe("RequireAuth", () => {
     tokenStorage.setTokens(validToken(), "some-refresh");
     renderProtected();
     expect(screen.getByText(/task list/i)).toBeInTheDocument();
+  });
+
+  describe("idle timeout", () => {
+    beforeEach(() => {
+      vi.useFakeTimers();
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it("clears the session and redirects to /login after the idle timeout elapses with no activity (AC14, AC15)", () => {
+      tokenStorage.setTokens(validToken(), "some-refresh");
+      renderProtected();
+
+      act(() => {
+        vi.advanceTimersByTime(config.idleTimeoutMs);
+      });
+
+      expect(screen.getByText(/login screen/i)).toBeInTheDocument();
+      expect(tokenStorage.getAccessToken()).toBeNull();
+    });
   });
 });
