@@ -2,6 +2,7 @@ import { Navigate, Route, Routes } from "react-router-dom";
 import { Register } from "./pages/Register";
 import { Login } from "./pages/Login";
 import { TaskList } from "./pages/TaskList";
+import { Dashboard } from "./pages/Dashboard";
 import { RequireAuth } from "./components/RequireAuth";
 
 export function App() {
@@ -14,6 +15,14 @@ export function App() {
         element={
           <RequireAuth>
             <TaskList />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/dashboard"
+        element={
+          <RequireAuth>
+            <Dashboard />
           </RequireAuth>
         }
       />
