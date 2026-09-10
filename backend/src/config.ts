@@ -17,10 +17,11 @@ export const config = {
   databaseUrl: process.env.DATABASE_URL || "",
   accessTokenSecret: requireEnv("ACCESS_TOKEN_SECRET"),
   refreshTokenSecret: requireEnv("REFRESH_TOKEN_SECRET"),
+  metricsToken: requireEnv("METRICS_TOKEN"),
   accessTokenTtl: process.env.ACCESS_TOKEN_TTL || "15m",
   refreshTokenTtl: process.env.REFRESH_TOKEN_TTL || "7d",
   lockoutThreshold: Number(process.env.LOCKOUT_THRESHOLD || 5),
   lockoutDurationMs: Number(process.env.LOCKOUT_DURATION_MS || 15 * 60 * 1000),
   port: Number(process.env.ARC_DEV_PORT || 8001),
-  frontendUrl: process.env.FRONTEND_URL || "http://localhost:3004",
+  frontendUrl: process.env.FRONTEND_URL || `http://localhost:${process.env.ARC_WEB_PORT || 3001}`,
 };

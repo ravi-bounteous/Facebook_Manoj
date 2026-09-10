@@ -19,23 +19,36 @@ export interface DashboardResult {
 
 const UPCOMING_WINDOW_DAYS = 7;
 
+interface DashboardSummaryRow {
+  timezone: string;
+  total_count: string;
+  completed_count: string;
+  pending_count: string;
+  overdue_count: string;
+}
+
 export async function getDashboardForUser(userId: string): Promise<DashboardResult> {
-  const user = await knex("users").where({ id: userId }).first("timezone");
-  const timezone = user?.timezone ?? "UTC";
+  const summary = await knex("users")
+    .where("users.id", userId)
+    .leftJoin("tasks", "tasks.user_id", "users.id")
+    .first<DashboardSummaryRow>(
+      "users.timezone as timezone",
+      knex.raw("count(tasks.id) as total_count"),
+      knex.raw("sum(case when tasks.completed then 1 else 0 end) as completed_count"),
+      knex.raw("sum(case when not tasks.completed then 1 else 0 end) as pending_count"),
+      knex.raw(
+        `sum(case when not tasks.completed and tasks.due_date is not null
+              and (tasks.due_date at time zone users.timezone)::date < (now() at time zone users.timezone)::date
+              then 1 else 0 end) as overdue_count`
+      )
+    )
+    .groupBy("users.id", "users.timezone");
 
-  const [{ count: totalCount }] = await knex("tasks").where({ user_id: userId }).count<{ count: string }[]>("id as count");
-  const [{ count: completedCount }] = await knex("tasks")
-    .where({ user_id: userId, completed: true })
-    .count<{ count: string }[]>("id as count");
-  const [{ count: pendingCount }] = await knex("tasks")
-    .where({ user_id: userId, completed: false })
-    .count<{ count: string }[]>("id as count");
-
-  const [{ count: overdueCount }] = await knex("tasks")
-    .where({ user_id: userId, completed: false })
-    .whereNotNull("due_date")
-    .whereRaw("(due_date AT TIME ZONE ?)::date < (now() AT TIME ZONE ?)::date", [timezone, timezone])
-    .count<{ count: string }[]>("id as count");
+  const timezone = summary?.timezone ?? "UTC";
+  const totalCount = summary?.total_count ?? "0";
+  const completedCount = summary?.completed_count ?? "0";
+  const pendingCount = summary?.pending_count ?? "0";
+  const overdueCount = summary?.overdue_count ?? "0";
 
   const upcomingTasks = await knex("tasks")
     .select("id", "title", "due_date", "priority", "created_at", "completed")

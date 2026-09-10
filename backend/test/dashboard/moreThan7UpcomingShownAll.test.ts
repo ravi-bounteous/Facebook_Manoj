@@ -29,6 +29,6 @@ describe("getDashboardForUser shows all upcoming tasks with no truncation (AC14)
     const result = await getDashboardForUser(user.user.id);
 
     expect(result.upcomingTasks).toHaveLength(10);
-    expect(result.upcomingTasks.map((t: any) => t.title).sort()).toEqual(titles.sort());
+    expect(result.upcomingTasks.map((t: any) => t.title)).toEqual(titles);
   });
 });

@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
 import { verifyAccessToken } from "../services/tokenService";
+import { config } from "../config";
 
 export interface AuthenticatedRequest extends Request {
   user?: { id: string };
@@ -26,4 +27,16 @@ export function requireAuth(req: AuthenticatedRequest, res: Response, next: Next
     }
     next(err);
   }
+}
+
+export function requireMetricsAuth(req: Request, res: Response, next: NextFunction): void {
+  const header = req.headers.authorization;
+  const token = header?.startsWith("Bearer ") ? header.slice("Bearer ".length) : undefined;
+
+  if (!token || token !== config.metricsToken) {
+    res.status(401).json({ error: "Authentication required" });
+    return;
+  }
+
+  next();
 }
