@@ -16,7 +16,10 @@ const POSTGRES_UNIQUE_VIOLATION = "23505";
 let dummyPasswordHash: Promise<string> | null = null;
 function getDummyPasswordHash(): Promise<string> {
   if (!dummyPasswordHash) {
-    dummyPasswordHash = bcrypt.hash("dummy-password-for-timing-safety-only", BCRYPT_ROUNDS);
+    dummyPasswordHash = bcrypt.hash("dummy-password-for-timing-safety-only", BCRYPT_ROUNDS).catch((err) => {
+      dummyPasswordHash = null;
+      throw err;
+    });
   }
   return dummyPasswordHash;
 }
