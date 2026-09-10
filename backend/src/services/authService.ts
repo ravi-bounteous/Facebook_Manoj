@@ -9,9 +9,11 @@ import { systemClock, Clock } from "../utils/clock";
 
 const BCRYPT_ROUNDS = 10;
 const POSTGRES_UNIQUE_VIOLATION = "23505";
-// A valid bcrypt hash of a value nobody can supply, used so login() takes the same time
-// whether or not the email is registered (avoids a timing side-channel for user enumeration).
-const DUMMY_PASSWORD_HASH = "$2b$10$CwTycUXWue0Thq9StjUM0uJ8bR8sYW4vHFLwqrKUKXKGjOKCWDBaK";
+// A bcrypt hash of an unguessable, process-local value that no real password can match,
+// used so login() takes the same time whether or not the email is registered (avoids a
+// timing side-channel for user enumeration). Computed at load time rather than hardcoded
+// so no fixed hash literal lives in source.
+const DUMMY_PASSWORD_HASH = bcrypt.hashSync(`dummy-${Date.now()}-${Math.random()}`, BCRYPT_ROUNDS);
 
 export interface AuthResult {
   accessToken: string;
