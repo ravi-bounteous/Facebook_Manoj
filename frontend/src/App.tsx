@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 import { Register } from "./pages/Register";
 import { Login } from "./pages/Login";
+import { ForgotPassword } from "./pages/ForgotPassword";
 import { TaskList } from "./pages/TaskList";
 import { RequireAuth } from "./components/RequireAuth";
 
@@ -9,6 +10,7 @@ export function App() {
     <Routes>
       <Route path="/register" element={<Register />} />
       <Route path="/login" element={<Login />} />
+      <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route
         path="/tasks"
         element={

@@ -14,7 +14,7 @@ function requireEnv(name: string): string {
 }
 
 export const config = {
-  databaseUrl: process.env.DATABASE_URL || "",
+  databaseUrl: requireEnv("DATABASE_URL"),
   accessTokenSecret: requireEnv("ACCESS_TOKEN_SECRET"),
   refreshTokenSecret: requireEnv("REFRESH_TOKEN_SECRET"),
   accessTokenTtl: process.env.ACCESS_TOKEN_TTL || "15m",

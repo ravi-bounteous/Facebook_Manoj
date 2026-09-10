@@ -1,6 +1,8 @@
 import { FormEvent, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, Navigate, useNavigate } from "react-router-dom";
 import * as authApi from "../api/authApi";
+import { tokenStorage, isTokenExpired } from "../api/tokenStorage";
+import { isValidEmail } from "../validators";
 
 export function Login() {
   const [email, setEmail] = useState("");
@@ -8,9 +10,26 @@ export function Login() {
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
 
+  if (!isTokenExpired(tokenStorage.getAccessToken())) {
+    return <Navigate to="/tasks" replace />;
+  }
+
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
     setError(null);
+
+    if (!email.trim()) {
+      setError("Email is required");
+      return;
+    }
+    if (!isValidEmail(email)) {
+      setError("Enter a valid email address");
+      return;
+    }
+    if (!password) {
+      setError("Password is required");
+      return;
+    }
 
     try {
       await authApi.login(email, password);
@@ -32,6 +51,7 @@ export function Login() {
       {error && <p role="alert">{error}</p>}
 
       <button type="submit">Log In</button>
+      <Link to="/forgot-password">Forgot Password?</Link>
     </form>
   );
 }

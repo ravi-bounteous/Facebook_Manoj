@@ -48,6 +48,7 @@ export async function register(email: string, password: string): Promise<AuthRes
 }
 
 export async function login(email: string, password: string, clock: Clock = systemClock): Promise<AuthResult> {
+  const startedAt = Date.now();
   const normalizedEmail = normalizeEmail(email);
   const user = await knex("users").where({ email: normalizedEmail }).first();
 
@@ -61,11 +62,20 @@ export async function login(email: string, password: string, clock: Clock = syst
 
   const passwordMatches = await bcrypt.compare(password, user.password_hash);
   if (!passwordMatches) {
-    await recordFailedAttempt(user.id, user.failed_login_attempts, clock);
+    await recordFailedAttempt(user.id, clock);
     throw new InvalidCredentialsError();
   }
 
   await knex("users").where({ id: user.id }).update({ failed_login_attempts: 0, locked_until: null });
+
+  console.log(
+    JSON.stringify({
+      event: "auth.login.success",
+      userId: user.id,
+      durationMs: Date.now() - startedAt,
+      timestamp: new Date().toISOString(),
+    })
+  );
 
   return {
     accessToken: signAccessToken(user.id),
@@ -74,13 +84,51 @@ export async function login(email: string, password: string, clock: Clock = syst
   };
 }
 
-async function recordFailedAttempt(userId: string, currentAttempts: number, clock: Clock): Promise<void> {
-  const attempts = currentAttempts + 1;
-  const update: Record<string, unknown> = { failed_login_attempts: attempts };
-  if (attempts >= config.lockoutThreshold) {
-    update.locked_until = new Date(clock.now().getTime() + config.lockoutDurationMs);
+async function recordFailedAttempt(userId: string, clock: Clock): Promise<void> {
+  let attempts: number;
+  try {
+    const lockoutUntil = new Date(clock.now().getTime() + config.lockoutDurationMs);
+    const [row] = await knex("users")
+      .where({ id: userId })
+      .update({
+        failed_login_attempts: knex.raw("failed_login_attempts + 1"),
+        locked_until: knex.raw(
+          "CASE WHEN failed_login_attempts + 1 >= ? THEN ? ELSE locked_until END",
+          [config.lockoutThreshold, lockoutUntil]
+        ),
+      })
+      .returning(["failed_login_attempts", "locked_until"]);
+    attempts = row.failed_login_attempts;
+  } catch (err) {
+    console.error(
+      JSON.stringify({
+        event: "auth.login.recordFailedAttempt.incrementError",
+        userId,
+        error: err instanceof Error ? err.message : String(err),
+      })
+    );
+    throw err;
   }
-  await knex("users").where({ id: userId }).update(update);
+
+  console.log(
+    JSON.stringify({
+      event: "auth.login.failedAttempt",
+      userId,
+      attempts,
+      timestamp: new Date().toISOString(),
+    })
+  );
+
+  if (attempts >= config.lockoutThreshold) {
+    console.log(
+      JSON.stringify({
+        event: "auth.login.accountLocked",
+        userId,
+        attempts,
+        timestamp: new Date().toISOString(),
+      })
+    );
+  }
 }
 
 export async function refresh(refreshToken: string): Promise<{ accessToken: string }> {
