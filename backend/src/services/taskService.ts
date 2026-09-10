@@ -208,6 +208,58 @@ export async function listFilterOptionsForUser(userId: string): Promise<{ catego
   return { categories, tags };
 }
 
+export interface DashboardCounts {
+  total: number;
+  completed: number;
+  pending: number;
+  overdue: number;
+}
+
+async function getUserTimeZone(userId: string): Promise<string> {
+  const user = await knex("users").where({ id: userId }).select("timezone").first();
+  return user?.timezone ?? "UTC";
+}
+
+export async function getDashboardCountsForUser(userId: string): Promise<DashboardCounts> {
+  const timeZone = await getUserTimeZone(userId);
+
+  const [row] = await knex("tasks")
+    .where({ user_id: userId })
+    .select(
+      knex.raw("COUNT(*)::int as total"),
+      knex.raw("COUNT(*) FILTER (WHERE completed)::int as completed"),
+      knex.raw("COUNT(*) FILTER (WHERE NOT completed)::int as pending"),
+      knex.raw(
+        "COUNT(*) FILTER (WHERE NOT completed AND due_date IS NOT NULL AND (due_date AT TIME ZONE ?)::date < (now() AT TIME ZONE ?)::date)::int as overdue",
+        [timeZone, timeZone]
+      )
+    );
+
+  return {
+    total: row?.total ?? 0,
+    completed: row?.completed ?? 0,
+    pending: row?.pending ?? 0,
+    overdue: row?.overdue ?? 0,
+  };
+}
+
+export async function getDashboardUpcomingForUser(userId: string): Promise<any[]> {
+  const timeZone = await getUserTimeZone(userId);
+
+  return knex("tasks")
+    .where({ user_id: userId, completed: false })
+    .whereNotNull("due_date")
+    .whereRaw("(due_date AT TIME ZONE ?)::date >= (now() AT TIME ZONE ?)::date", [timeZone, timeZone])
+    .whereRaw("(due_date AT TIME ZONE ?)::date <= ((now() AT TIME ZONE ?)::date + interval '7 days')", [
+      timeZone,
+      timeZone,
+    ])
+    .select("id", "title", "due_date", "priority", "created_at", "completed")
+    .orderBy("due_date", "asc")
+    .orderBy("created_at", "asc")
+    .orderBy("id", "asc");
+}
+
 export async function deleteTask(userId: string, taskId: string) {
   const deletedCount = await knex("tasks").where({ id: taskId, user_id: userId }).del();
   if (deletedCount === 0) {

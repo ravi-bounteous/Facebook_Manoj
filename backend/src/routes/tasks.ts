@@ -1,7 +1,14 @@
 import { Router, Response, NextFunction } from "express";
 import { validate as isUUID } from "uuid";
 import { requireAuth, AuthenticatedRequest } from "../middleware/requireAuth";
-import { listTasksForUser, listFilterOptionsForUser, toggleTaskCompletion, deleteTask } from "../services/taskService";
+import {
+  listTasksForUser,
+  listFilterOptionsForUser,
+  toggleTaskCompletion,
+  deleteTask,
+  getDashboardCountsForUser,
+  getDashboardUpcomingForUser,
+} from "../services/taskService";
 import { NotFoundError, ValidationError } from "../services/errors";
 
 export const tasksRouter = Router();
@@ -70,6 +77,60 @@ tasksRouter.get(
       console.error(
         JSON.stringify({
           event: "tasks.list.error",
+          userId: req.user!.id,
+          error: err instanceof Error ? err.message : String(err),
+        })
+      );
+      next(err);
+    }
+  }
+);
+
+tasksRouter.get(
+  "/dashboard/counts",
+  requireAuth,
+  async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+    try {
+      const counts = await getDashboardCountsForUser(req.user!.id);
+      console.log(
+        JSON.stringify({
+          event: "tasks.dashboard.counts.retrieved",
+          userId: req.user!.id,
+          counts,
+        })
+      );
+      res.status(200).json({ counts });
+    } catch (err) {
+      console.error(
+        JSON.stringify({
+          event: "tasks.dashboard.counts.error",
+          userId: req.user!.id,
+          error: err instanceof Error ? err.message : String(err),
+        })
+      );
+      next(err);
+    }
+  }
+);
+
+tasksRouter.get(
+  "/dashboard/upcoming",
+  requireAuth,
+  async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+    try {
+      const upcoming = await getDashboardUpcomingForUser(req.user!.id);
+      console.log(
+        JSON.stringify({
+          event: "tasks.dashboard.upcoming.retrieved",
+          userId: req.user!.id,
+          upcomingCount: upcoming.length,
+        })
+      );
+      res.status(200).json({ upcoming });
+    } catch (err) {
+      console.error(
+        JSON.stringify({
+          event: "tasks.dashboard.upcoming.error",
           userId: req.user!.id,
           error: err instanceof Error ? err.message : String(err),
         })

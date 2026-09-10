@@ -32,3 +32,19 @@ describe("App logout (AC9)", () => {
     expect(tokenStorage.getAccessToken()).toBeNull();
   });
 });
+
+describe("App dashboard route (AC13)", () => {
+  beforeEach(() => {
+    tokenStorage.clear();
+  });
+
+  it("redirects unauthenticated users from /dashboard to /login", () => {
+    render(
+      <MemoryRouter initialEntries={["/dashboard"]}>
+        <App />
+      </MemoryRouter>
+    );
+
+    expect(screen.getByRole("heading", { name: /log in/i })).toBeInTheDocument();
+  });
+});

@@ -9,6 +9,20 @@ import { systemClock, Clock } from "../utils/clock";
 
 const BCRYPT_ROUNDS = 10;
 const POSTGRES_UNIQUE_VIOLATION = "23505";
+// A bcrypt hash that no real password can match, compared against when the email is not
+// registered so login() takes the same time either way (avoids a timing side-channel for
+// user enumeration). Computed lazily on first use and cached for the life of the process,
+// so it doesn't block server startup and stays a stable comparison target thereafter.
+let dummyPasswordHash: Promise<string> | null = null;
+function getDummyPasswordHash(): Promise<string> {
+  if (!dummyPasswordHash) {
+    dummyPasswordHash = bcrypt.hash("dummy-password-for-timing-safety-only", BCRYPT_ROUNDS).catch((err) => {
+      dummyPasswordHash = null;
+      throw err;
+    });
+  }
+  return dummyPasswordHash;
+}
 
 export interface AuthResult {
   accessToken: string;
@@ -51,17 +65,15 @@ export async function login(email: string, password: string, clock: Clock = syst
   const normalizedEmail = normalizeEmail(email);
   const user = await knex("users").where({ email: normalizedEmail }).first();
 
-  if (!user) {
-    throw new InvalidCredentialsError();
-  }
-
-  if (user.locked_until && new Date(user.locked_until) > clock.now()) {
+  if (user && user.locked_until && new Date(user.locked_until) > clock.now()) {
     throw new AccountLockedError();
   }
 
-  const passwordMatches = await bcrypt.compare(password, user.password_hash);
-  if (!passwordMatches) {
-    await recordFailedAttempt(user.id, user.failed_login_attempts, clock);
+  const passwordMatches = await bcrypt.compare(password, user?.password_hash ?? (await getDummyPasswordHash()));
+  if (!user || !passwordMatches) {
+    if (user) {
+      await recordFailedAttempt(user.id, user.failed_login_attempts, clock);
+    }
     throw new InvalidCredentialsError();
   }
 
