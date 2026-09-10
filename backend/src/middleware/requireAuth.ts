@@ -7,9 +7,13 @@ export interface AuthenticatedRequest extends Request {
   user?: { id: string };
 }
 
-export function requireAuth(req: AuthenticatedRequest, res: Response, next: NextFunction): void {
+function extractBearerToken(req: Request): string | undefined {
   const header = req.headers.authorization;
-  const token = header?.startsWith("Bearer ") ? header.slice("Bearer ".length) : undefined;
+  return header?.startsWith("Bearer ") ? header.slice("Bearer ".length) : undefined;
+}
+
+export function requireAuth(req: AuthenticatedRequest, res: Response, next: NextFunction): void {
+  const token = extractBearerToken(req);
 
   if (!token) {
     res.status(401).json({ error: "Authentication required" });
@@ -30,8 +34,7 @@ export function requireAuth(req: AuthenticatedRequest, res: Response, next: Next
 }
 
 export function requireMetricsAuth(req: Request, res: Response, next: NextFunction): void {
-  const header = req.headers.authorization;
-  const token = header?.startsWith("Bearer ") ? header.slice("Bearer ".length) : undefined;
+  const token = extractBearerToken(req);
 
   if (!token || token !== config.metricsToken) {
     res.status(401).json({ error: "Authentication required" });
