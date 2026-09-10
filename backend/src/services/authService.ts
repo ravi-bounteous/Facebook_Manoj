@@ -9,11 +9,17 @@ import { systemClock, Clock } from "../utils/clock";
 
 const BCRYPT_ROUNDS = 10;
 const POSTGRES_UNIQUE_VIOLATION = "23505";
-// A bcrypt hash of an unguessable, process-local value that no real password can match,
-// used so login() takes the same time whether or not the email is registered (avoids a
-// timing side-channel for user enumeration). Computed at load time rather than hardcoded
-// so no fixed hash literal lives in source.
-const DUMMY_PASSWORD_HASH = bcrypt.hashSync(`dummy-${Date.now()}-${Math.random()}`, BCRYPT_ROUNDS);
+// A bcrypt hash that no real password can match, compared against when the email is not
+// registered so login() takes the same time either way (avoids a timing side-channel for
+// user enumeration). Computed lazily on first use and cached for the life of the process,
+// so it doesn't block server startup and stays a stable comparison target thereafter.
+let dummyPasswordHash: Promise<string> | null = null;
+function getDummyPasswordHash(): Promise<string> {
+  if (!dummyPasswordHash) {
+    dummyPasswordHash = bcrypt.hash("dummy-password-for-timing-safety-only", BCRYPT_ROUNDS);
+  }
+  return dummyPasswordHash;
+}
 
 export interface AuthResult {
   accessToken: string;
@@ -60,7 +66,7 @@ export async function login(email: string, password: string, clock: Clock = syst
     throw new AccountLockedError();
   }
 
-  const passwordMatches = await bcrypt.compare(password, user?.password_hash ?? DUMMY_PASSWORD_HASH);
+  const passwordMatches = await bcrypt.compare(password, user?.password_hash ?? (await getDummyPasswordHash()));
   if (!user || !passwordMatches) {
     if (user) {
       await recordFailedAttempt(user.id, user.failed_login_attempts, clock);
