@@ -25,4 +25,14 @@ describe("config", () => {
 
     expect(() => require("../src/config")).toThrow(/REFRESH_TOKEN_SECRET/);
   });
+
+  it("throws instead of silently defaulting to an empty connection string when DATABASE_URL is unset", () => {
+    jest.resetModules();
+    process.env.NODE_ENV = "production";
+    process.env.ACCESS_TOKEN_SECRET = "some-access-secret";
+    process.env.REFRESH_TOKEN_SECRET = "some-refresh-secret";
+    delete process.env.DATABASE_URL;
+
+    expect(() => require("../src/config")).toThrow(/DATABASE_URL/);
+  });
 });

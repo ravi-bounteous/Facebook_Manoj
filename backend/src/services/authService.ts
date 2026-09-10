@@ -61,7 +61,7 @@ export async function login(email: string, password: string, clock: Clock = syst
 
   const passwordMatches = await bcrypt.compare(password, user.password_hash);
   if (!passwordMatches) {
-    await recordFailedAttempt(user.id, user.failed_login_attempts, clock);
+    await recordFailedAttempt(user.id, clock);
     throw new InvalidCredentialsError();
   }
 
@@ -74,13 +74,18 @@ export async function login(email: string, password: string, clock: Clock = syst
   };
 }
 
-async function recordFailedAttempt(userId: string, currentAttempts: number, clock: Clock): Promise<void> {
-  const attempts = currentAttempts + 1;
-  const update: Record<string, unknown> = { failed_login_attempts: attempts };
+async function recordFailedAttempt(userId: string, clock: Clock): Promise<void> {
+  const [row] = await knex("users")
+    .where({ id: userId })
+    .increment("failed_login_attempts", 1)
+    .returning(["failed_login_attempts"]);
+  const attempts = row.failed_login_attempts;
+
   if (attempts >= config.lockoutThreshold) {
-    update.locked_until = new Date(clock.now().getTime() + config.lockoutDurationMs);
+    await knex("users")
+      .where({ id: userId })
+      .update({ locked_until: new Date(clock.now().getTime() + config.lockoutDurationMs) });
   }
-  await knex("users").where({ id: userId }).update(update);
 }
 
 export async function refresh(refreshToken: string): Promise<{ accessToken: string }> {

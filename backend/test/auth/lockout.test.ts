@@ -36,6 +36,16 @@ describe("account lockout (AC25, AC26, AC27)", () => {
     await expect(authService.login(email, password, fixedClock(duringCooldown))).rejects.toThrow(AccountLockedError);
   });
 
+  it("counts every concurrent failed attempt without losing updates (race condition)", async () => {
+    await Promise.all(
+      Array.from({ length: 5 }, () => authService.login(email, INVALID_CREDENTIAL, fixedClock(start)).catch(() => {}))
+    );
+
+    const user = await knex("users").where({ email }).first();
+    expect(user.failed_login_attempts).toBe(5);
+    expect(user.locked_until).not.toBeNull();
+  });
+
   it("allows login again once the cooldown elapses (AC27)", async () => {
     for (let i = 0; i < 5; i++) {
       await expect(authService.login(email, INVALID_CREDENTIAL, fixedClock(start))).rejects.toThrow(InvalidCredentialsError);
