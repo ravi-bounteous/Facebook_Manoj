@@ -29,29 +29,48 @@ export function Dashboard() {
   useEffect(() => {
     let cancelled = false;
 
-    async function load() {
+    async function loadCounts() {
       try {
-        const res = await apiFetch("/tasks/dashboard");
+        const res = await apiFetch("/tasks/dashboard/counts");
         if (cancelled) return;
         if (!res.ok) {
-          throw new Error("Failed to load dashboard");
+          throw new Error("Failed to load summary counts");
         }
         const data = await res.json();
         if (cancelled) return;
         setCounts(data.counts);
-        setUpcoming(data.upcoming);
+        setCountsError(null);
       } catch {
         if (cancelled) return;
         setCountsError("Failed to load summary counts");
-        setUpcomingError("Failed to load upcoming tasks");
       } finally {
         if (cancelled) return;
         setCountsLoading(false);
+      }
+    }
+
+    async function loadUpcoming() {
+      try {
+        const res = await apiFetch("/tasks/dashboard/upcoming");
+        if (cancelled) return;
+        if (!res.ok) {
+          throw new Error("Failed to load upcoming tasks");
+        }
+        const data = await res.json();
+        if (cancelled) return;
+        setUpcoming(data.upcoming);
+        setUpcomingError(null);
+      } catch {
+        if (cancelled) return;
+        setUpcomingError("Failed to load upcoming tasks");
+      } finally {
+        if (cancelled) return;
         setUpcomingLoading(false);
       }
     }
 
-    load();
+    loadCounts();
+    loadUpcoming();
     return () => {
       cancelled = true;
     };

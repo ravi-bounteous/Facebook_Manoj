@@ -1,5 +1,5 @@
 import { knex } from "../../src/db/knex";
-import { getDashboardForUser } from "../../src/services/taskService";
+import { getDashboardCountsForUser, getDashboardUpcomingForUser } from "../../src/services/taskService";
 import request from "supertest";
 import { createApp } from "../../src/app";
 import { VALID_CREDENTIAL } from "../fixtures/credentials";
@@ -9,6 +9,14 @@ const app = createApp();
 async function registerUser(email: string) {
   const res = await request(app).post("/api/auth/register").send({ email, password: VALID_CREDENTIAL });
   return res.body;
+}
+
+async function getDashboardForUser(userId: string) {
+  const [counts, upcoming] = await Promise.all([
+    getDashboardCountsForUser(userId),
+    getDashboardUpcomingForUser(userId),
+  ]);
+  return { counts, upcoming };
 }
 
 function daysFromToday(days: number): Date {
@@ -193,22 +201,53 @@ describe("getDashboardForUser (AC1-AC21)", () => {
   });
 });
 
-describe("GET /api/tasks/dashboard route (AC13)", () => {
-  it("returns 401 for unauthenticated requests", async () => {
-    const res = await request(app).get("/api/tasks/dashboard");
+describe("GET /api/tasks/dashboard/counts and /api/tasks/dashboard/upcoming routes (AC13, AC19)", () => {
+  it("returns 401 for unauthenticated requests to the counts route", async () => {
+    const res = await request(app).get("/api/tasks/dashboard/counts");
     expect(res.status).toBe(401);
   });
 
-  it("returns counts and upcoming for the authenticated user", async () => {
+  it("returns 401 for unauthenticated requests to the upcoming route", async () => {
+    const res = await request(app).get("/api/tasks/dashboard/upcoming");
+    expect(res.status).toBe(401);
+  });
+
+  it("returns counts for the authenticated user from the counts route", async () => {
     const user = await registerUser("dashroute1@example.com");
     await knex("tasks").insert({ user_id: user.user.id, title: "task1", due_date: daysFromToday(1) });
 
     const res = await request(app)
-      .get("/api/tasks/dashboard")
+      .get("/api/tasks/dashboard/counts")
       .set("Authorization", `Bearer ${user.accessToken}`);
 
     expect(res.status).toBe(200);
     expect(res.body.counts.total).toBe(1);
+  });
+
+  it("returns upcoming tasks for the authenticated user from the upcoming route", async () => {
+    const user = await registerUser("dashroute2@example.com");
+    await knex("tasks").insert({ user_id: user.user.id, title: "task1", due_date: daysFromToday(1) });
+
+    const res = await request(app)
+      .get("/api/tasks/dashboard/upcoming")
+      .set("Authorization", `Bearer ${user.accessToken}`);
+
+    expect(res.status).toBe(200);
     expect(res.body.upcoming.length).toBe(1);
+  });
+
+  it("allows the counts and upcoming routes to be called and fail independently (AC19)", async () => {
+    const user = await registerUser("dashroute3@example.com");
+    await knex("tasks").insert({ user_id: user.user.id, title: "task1", due_date: daysFromToday(1) });
+
+    const countsRes = await request(app)
+      .get("/api/tasks/dashboard/counts")
+      .set("Authorization", `Bearer ${user.accessToken}`);
+    const upcomingRes = await request(app)
+      .get("/api/tasks/dashboard/upcoming")
+      .set("Authorization", `Bearer invalid-token`);
+
+    expect(countsRes.status).toBe(200);
+    expect(upcomingRes.status).toBe(401);
   });
 });

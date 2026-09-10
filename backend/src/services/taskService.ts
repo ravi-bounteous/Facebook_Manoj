@@ -215,14 +215,13 @@ export interface DashboardCounts {
   overdue: number;
 }
 
-export interface DashboardResult {
-  counts: DashboardCounts;
-  upcoming: any[];
+async function getUserTimeZone(userId: string): Promise<string> {
+  const user = await knex("users").where({ id: userId }).select("timezone").first();
+  return user?.timezone ?? "UTC";
 }
 
-export async function getDashboardForUser(userId: string): Promise<DashboardResult> {
-  const user = await knex("users").where({ id: userId }).select("timezone").first();
-  const timeZone = user?.timezone ?? "UTC";
+export async function getDashboardCountsForUser(userId: string): Promise<DashboardCounts> {
+  const timeZone = await getUserTimeZone(userId);
 
   const [row] = await knex("tasks")
     .where({ user_id: userId })
@@ -236,7 +235,18 @@ export async function getDashboardForUser(userId: string): Promise<DashboardResu
       )
     );
 
-  const upcoming = await knex("tasks")
+  return {
+    total: row?.total ?? 0,
+    completed: row?.completed ?? 0,
+    pending: row?.pending ?? 0,
+    overdue: row?.overdue ?? 0,
+  };
+}
+
+export async function getDashboardUpcomingForUser(userId: string): Promise<any[]> {
+  const timeZone = await getUserTimeZone(userId);
+
+  return knex("tasks")
     .where({ user_id: userId, completed: false })
     .whereNotNull("due_date")
     .whereRaw("(due_date AT TIME ZONE ?)::date >= (now() AT TIME ZONE ?)::date", [timeZone, timeZone])
@@ -248,16 +258,6 @@ export async function getDashboardForUser(userId: string): Promise<DashboardResu
     .orderBy("due_date", "asc")
     .orderBy("created_at", "asc")
     .orderBy("id", "asc");
-
-  return {
-    counts: {
-      total: row?.total ?? 0,
-      completed: row?.completed ?? 0,
-      pending: row?.pending ?? 0,
-      overdue: row?.overdue ?? 0,
-    },
-    upcoming,
-  };
 }
 
 export async function deleteTask(userId: string, taskId: string) {

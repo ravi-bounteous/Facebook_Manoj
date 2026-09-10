@@ -6,7 +6,8 @@ import {
   listFilterOptionsForUser,
   toggleTaskCompletion,
   deleteTask,
-  getDashboardForUser,
+  getDashboardCountsForUser,
+  getDashboardUpcomingForUser,
 } from "../services/taskService";
 import { NotFoundError, ValidationError } from "../services/errors";
 
@@ -86,24 +87,50 @@ tasksRouter.get(
 );
 
 tasksRouter.get(
-  "/dashboard",
+  "/dashboard/counts",
   requireAuth,
   async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     try {
-      const result = await getDashboardForUser(req.user!.id);
+      const counts = await getDashboardCountsForUser(req.user!.id);
       console.log(
         JSON.stringify({
-          event: "tasks.dashboard.retrieved",
+          event: "tasks.dashboard.counts.retrieved",
           userId: req.user!.id,
-          counts: result.counts,
-          upcomingCount: result.upcoming.length,
+          counts,
         })
       );
-      res.status(200).json(result);
+      res.status(200).json({ counts });
     } catch (err) {
       console.error(
         JSON.stringify({
-          event: "tasks.dashboard.error",
+          event: "tasks.dashboard.counts.error",
+          userId: req.user!.id,
+          error: err instanceof Error ? err.message : String(err),
+        })
+      );
+      next(err);
+    }
+  }
+);
+
+tasksRouter.get(
+  "/dashboard/upcoming",
+  requireAuth,
+  async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+    try {
+      const upcoming = await getDashboardUpcomingForUser(req.user!.id);
+      console.log(
+        JSON.stringify({
+          event: "tasks.dashboard.upcoming.retrieved",
+          userId: req.user!.id,
+          upcomingCount: upcoming.length,
+        })
+      );
+      res.status(200).json({ upcoming });
+    } catch (err) {
+      console.error(
+        JSON.stringify({
+          event: "tasks.dashboard.upcoming.error",
           userId: req.user!.id,
           error: err instanceof Error ? err.message : String(err),
         })

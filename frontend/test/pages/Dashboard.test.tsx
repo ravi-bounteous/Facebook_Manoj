@@ -10,15 +10,31 @@ function makeToken(exp: number) {
   return `${header}.${payload}.signature`;
 }
 
-function makeDashboardResponse(counts: any, upcoming: any[]) {
+function makeCountsResponse(counts: any) {
   return {
     ok: true,
     status: 200,
-    json: async () => ({ counts, upcoming }),
+    json: async () => ({ counts }),
+  };
+}
+
+function makeUpcomingResponse(upcoming: any[]) {
+  return {
+    ok: true,
+    status: 200,
+    json: async () => ({ upcoming }),
   };
 }
 
 const ERROR_RESPONSE = { ok: false, status: 500, json: async () => ({ error: "Server error" }) };
+
+function mockFetchByUrl(handlers: { counts: any; upcoming: any }) {
+  return vi.fn().mockImplementation((url: string) => {
+    if (url.includes("/dashboard/counts")) return Promise.resolve(handlers.counts);
+    if (url.includes("/dashboard/upcoming")) return Promise.resolve(handlers.upcoming);
+    return Promise.reject(new Error(`Unexpected fetch: ${url}`));
+  });
+}
 
 describe("Dashboard", () => {
   beforeEach(() => {
@@ -27,9 +43,10 @@ describe("Dashboard", () => {
   });
 
   it("shows the four summary counts once data loads (AC1)", async () => {
-    globalThis.fetch = vi
-      .fn()
-      .mockResolvedValue(makeDashboardResponse({ total: 5, completed: 2, pending: 3, overdue: 1 }, [])) as any;
+    globalThis.fetch = mockFetchByUrl({
+      counts: makeCountsResponse({ total: 5, completed: 2, pending: 3, overdue: 1 }),
+      upcoming: makeUpcomingResponse([]),
+    }) as any;
 
     render(
       <MemoryRouter>
@@ -44,11 +61,12 @@ describe("Dashboard", () => {
   });
 
   it("shows a preview list of upcoming tasks (AC2)", async () => {
-    globalThis.fetch = vi.fn().mockResolvedValue(
-      makeDashboardResponse({ total: 1, completed: 0, pending: 1, overdue: 0 }, [
+    globalThis.fetch = mockFetchByUrl({
+      counts: makeCountsResponse({ total: 1, completed: 0, pending: 1, overdue: 0 }),
+      upcoming: makeUpcomingResponse([
         { id: "1", title: "Task A", due_date: "2026-09-11", priority: "Medium", created_at: "", completed: false },
-      ])
-    ) as any;
+      ]),
+    }) as any;
 
     render(
       <MemoryRouter>
@@ -60,9 +78,10 @@ describe("Dashboard", () => {
   });
 
   it("shows the empty-state message when no tasks are due in the next 7 days (AC3)", async () => {
-    globalThis.fetch = vi
-      .fn()
-      .mockResolvedValue(makeDashboardResponse({ total: 0, completed: 0, pending: 0, overdue: 0 }, [])) as any;
+    globalThis.fetch = mockFetchByUrl({
+      counts: makeCountsResponse({ total: 0, completed: 0, pending: 0, overdue: 0 }),
+      upcoming: makeUpcomingResponse([]),
+    }) as any;
 
     render(
       <MemoryRouter>
@@ -82,9 +101,10 @@ describe("Dashboard", () => {
       created_at: "",
       completed: false,
     }));
-    globalThis.fetch = vi
-      .fn()
-      .mockResolvedValue(makeDashboardResponse({ total: 9, completed: 0, pending: 9, overdue: 0 }, upcoming)) as any;
+    globalThis.fetch = mockFetchByUrl({
+      counts: makeCountsResponse({ total: 9, completed: 0, pending: 9, overdue: 0 }),
+      upcoming: makeUpcomingResponse(upcoming),
+    }) as any;
 
     render(
       <MemoryRouter>
@@ -99,11 +119,15 @@ describe("Dashboard", () => {
   });
 
   it("shows independent loading indicators for counts and upcoming sections (AC20)", async () => {
-    let resolveFetch: (value: any) => void;
-    const pending = new Promise((resolve) => {
-      resolveFetch = resolve;
+    let resolveCounts: (value: any) => void;
+    let resolveUpcoming: (value: any) => void;
+    const countsPending = new Promise((resolve) => {
+      resolveCounts = resolve;
     });
-    globalThis.fetch = vi.fn().mockReturnValue(pending) as any;
+    const upcomingPending = new Promise((resolve) => {
+      resolveUpcoming = resolve;
+    });
+    globalThis.fetch = mockFetchByUrl({ counts: countsPending, upcoming: upcomingPending }) as any;
 
     render(
       <MemoryRouter>
@@ -114,13 +138,21 @@ describe("Dashboard", () => {
     expect(screen.getByTestId("counts-loading")).toBeInTheDocument();
     expect(screen.getByTestId("upcoming-loading")).toBeInTheDocument();
 
-    resolveFetch!(makeDashboardResponse({ total: 0, completed: 0, pending: 0, overdue: 0 }, []));
+    resolveCounts!(makeCountsResponse({ total: 0, completed: 0, pending: 0, overdue: 0 }));
     await waitFor(() => expect(screen.queryByTestId("counts-loading")).not.toBeInTheDocument());
+    expect(screen.getByTestId("upcoming-loading")).toBeInTheDocument();
+
+    resolveUpcoming!(makeUpcomingResponse([]));
     await waitFor(() => expect(screen.queryByTestId("upcoming-loading")).not.toBeInTheDocument());
   });
 
-  it("shows an error message in both sections when the fetch fails, without crashing (AC19)", async () => {
-    globalThis.fetch = vi.fn().mockResolvedValue(ERROR_RESPONSE) as any;
+  it("shows an error only in the counts section when the counts fetch fails and upcoming succeeds (AC19)", async () => {
+    globalThis.fetch = mockFetchByUrl({
+      counts: ERROR_RESPONSE,
+      upcoming: makeUpcomingResponse([
+        { id: "1", title: "Task A", due_date: "2026-09-11", priority: "Medium", created_at: "", completed: false },
+      ]),
+    }) as any;
 
     render(
       <MemoryRouter>
@@ -129,6 +161,24 @@ describe("Dashboard", () => {
     );
 
     expect(await screen.findByTestId("counts-error")).toBeInTheDocument();
-    expect(screen.getByTestId("upcoming-error")).toBeInTheDocument();
+    expect(screen.queryByTestId("upcoming-error")).not.toBeInTheDocument();
+    expect(await screen.findByText("Task A")).toBeInTheDocument();
+  });
+
+  it("shows an error only in the upcoming section when the upcoming fetch fails and counts succeeds (AC19)", async () => {
+    globalThis.fetch = mockFetchByUrl({
+      counts: makeCountsResponse({ total: 5, completed: 2, pending: 3, overdue: 1 }),
+      upcoming: ERROR_RESPONSE,
+    }) as any;
+
+    render(
+      <MemoryRouter>
+        <Dashboard />
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByTestId("upcoming-error")).toBeInTheDocument();
+    expect(screen.queryByTestId("counts-error")).not.toBeInTheDocument();
+    expect(await screen.findByText("5")).toBeInTheDocument();
   });
 });
