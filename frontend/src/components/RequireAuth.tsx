@@ -5,17 +5,17 @@ import { config } from "../config";
 import { useIdleTimeout } from "../hooks/useIdleTimeout";
 
 export function RequireAuth({ children }: { children: ReactElement }): ReactElement {
-  const [idle, setIdle] = useState(false);
+  const [, forceRender] = useState(0);
   const handleIdle = useCallback(() => {
     tokenStorage.clear();
-    setIdle(true);
+    forceRender((n) => n + 1);
   }, []);
 
   useIdleTimeout(config.idleTimeoutMs, handleIdle);
 
   const currentToken = tokenStorage.getAccessToken();
 
-  if (idle || isTokenExpired(currentToken)) {
+  if (isTokenExpired(currentToken)) {
     return <Navigate to="/login" replace />;
   }
 
