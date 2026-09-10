@@ -9,6 +9,9 @@ import { systemClock, Clock } from "../utils/clock";
 
 const BCRYPT_ROUNDS = 10;
 const POSTGRES_UNIQUE_VIOLATION = "23505";
+// A valid bcrypt hash of a value nobody can supply, used so login() takes the same time
+// whether or not the email is registered (avoids a timing side-channel for user enumeration).
+const DUMMY_PASSWORD_HASH = "$2b$10$CwTycUXWue0Thq9StjUM0uJ8bR8sYW4vHFLwqrKUKXKGjOKCWDBaK";
 
 export interface AuthResult {
   accessToken: string;
@@ -51,17 +54,15 @@ export async function login(email: string, password: string, clock: Clock = syst
   const normalizedEmail = normalizeEmail(email);
   const user = await knex("users").where({ email: normalizedEmail }).first();
 
-  if (!user) {
-    throw new InvalidCredentialsError();
-  }
-
-  if (user.locked_until && new Date(user.locked_until) > clock.now()) {
+  if (user && user.locked_until && new Date(user.locked_until) > clock.now()) {
     throw new AccountLockedError();
   }
 
-  const passwordMatches = await bcrypt.compare(password, user.password_hash);
-  if (!passwordMatches) {
-    await recordFailedAttempt(user.id, user.failed_login_attempts, clock);
+  const passwordMatches = await bcrypt.compare(password, user?.password_hash ?? DUMMY_PASSWORD_HASH);
+  if (!user || !passwordMatches) {
+    if (user) {
+      await recordFailedAttempt(user.id, user.failed_login_attempts, clock);
+    }
     throw new InvalidCredentialsError();
   }
 
